@@ -223,6 +223,31 @@ RrsetFactory::generateCertRrset(const Name& label,
   return rrset;
 }
 
+Rrset
+RrsetFactory::generateAuthRrset(const Name& label,
+                                const name::Component& type,
+                                const uint64_t version,
+                                time::seconds ttl)
+{
+  if (!m_checked) {
+    BOOST_THROW_EXCEPTION(Error("You have to call checkZoneKey before call generate functions"));
+  }
+
+  if (ttl == DEFAULT_RR_TTL)
+    ttl = m_zone.getTtl();
+
+  Name name;
+  Rrset rrset;
+  std::tie(rrset, name) = generateBaseRrset(label, type, version, ttl);
+
+  Data data(name);
+
+  setContentType(data, NDNS_AUTH, ttl);
+  sign(data);
+  rrset.setData(data.wireEncode());
+
+  return rrset;
+}
 
 void
 RrsetFactory::sign(Data& data)

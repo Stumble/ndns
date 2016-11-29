@@ -197,8 +197,74 @@ ManagementTool::exportCertificate(const Name& certName, const std::string& outFi
 }
 
 void
+ManagementTool::addDelegatedRrset(Rrset& rrset,
+                                  RrsetFactory& zoneRrFactory,
+                                  const time::seconds& authTtl)
+{
+  const Name& label = rrset.getLabel();
+
+  // Check whether it is legal to insert the rrset
+  for (size_t i = 1; i <= label.size() - 1; i++) {
+    Name prefix = label.getPrefix(i);
+    Rrset prefixNsRr(rrset.getZone());
+    prefixNsRr.setLabel(prefix);
+    prefixNsRr.setType(label::NS_RR_TYPE);
+    if (m_dbMgr.find(prefixNsRr)) {
+      Data data(prefixNsRr.getData());
+      if (data.getContentType() == NDNS_LINK) {
+        BOOST_THROW_EXCEPTION(Error("Can not insert NDNS_AUTH record when there is already a NDNS_LINK"));
+      }
+    }
+  }
+
+  // check that it does not override existing AUTH
+  Rrset rrsetCopy = rrset;
+  rrsetCopy.setType(label::NS_RR_TYPE);
+  if (m_dbMgr.find(rrsetCopy)) {
+    if (Data(rrsetCopy.getData()).getContentType() == NDNS_AUTH) {
+      BOOST_THROW_EXCEPTION(Error("Can not add this Rrset: it overrides a NDNS_AUTH record"));
+    }
+  }
+
+  for (size_t i = 1; i <= label.size() - 1; i++) {
+    Name prefix = label.getPrefix(i);
+    Rrset prefixNsRr(rrset.getZone());
+    prefixNsRr.setLabel(prefix);
+    prefixNsRr.setType(label::NS_RR_TYPE);
+    if (m_dbMgr.find(prefixNsRr)) {
+      NDNS_LOG_INFO("NDNS_AUTH Rrset Label=" << prefix << " is already existed, insertion skipped");
+      continue;
+    }
+
+    Rrset authRr = zoneRrFactory.generateAuthRrset(prefix, label::NS_RR_TYPE,
+                                                   VERSION_USE_UNIX_TIMESTAMP,
+                                                   authTtl);
+    checkRrsetVersion(authRr);
+    NDNS_LOG_INFO("Added NDNS_AUTH " << authRr);
+    m_dbMgr.insert(authRr);
+  }
+
+  checkRrsetVersion(rrset);
+  NDNS_LOG_INFO("Added " << rrset);
+  m_dbMgr.insert(rrset);
+}
+
+void
 ManagementTool::addRrset(Rrset& rrset)
 {
+  if (rrset.getLabel().size() > 1) {
+    throw Error("Cannot add rrset with label size > 1, should use addDelegatedRrset instead");
+  }
+
+  // check that it does not override existing AUTH
+  Rrset rrsetCopy = rrset;
+  rrsetCopy.setType(label::NS_RR_TYPE);
+  if (m_dbMgr.find(rrsetCopy)) {
+    if (Data(rrsetCopy.getData()).getContentType() == NDNS_AUTH) {
+      BOOST_THROW_EXCEPTION(Error("Can not add this Rrset: it overrides a NDNS_AUTH record"));
+    }
+  }
+
   checkRrsetVersion(rrset);
   NDNS_LOG_INFO("Added " << rrset);
   m_dbMgr.insert(rrset);
@@ -302,6 +368,7 @@ ManagementTool::addRrSet(const Name& zoneName,
 
   checkRrsetVersion(rrset);
   NDNS_LOG_INFO("Added " << rrset);
+  // check NDN_AUTH
   m_dbMgr.insert(rrset);
 }
 

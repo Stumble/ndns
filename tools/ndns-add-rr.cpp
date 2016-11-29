@@ -30,6 +30,8 @@
 
 #include <string>
 
+NDNS_LOG_INIT("AddRrTool")
+
 int
 main(int argc, char* argv[])
 {
@@ -159,7 +161,13 @@ main(int argc, char* argv[])
     }
 
     ndn::ndns::ManagementTool tool(db, keyChain);
-    tool.addRrset(rrset);
+
+    if (label.size() > 1) {
+      NDNS_LOG_TRACE("add Delegated Rrset, using the same TTL as the Rrset");
+      tool.addDelegatedRrset(rrset, rrsetFactory, ttl);
+    } else {
+      tool.addRrset(rrset);
+    }
 
     /// @todo Report success or failure
     //        May be also show the inserted record in ndns-list-zone format

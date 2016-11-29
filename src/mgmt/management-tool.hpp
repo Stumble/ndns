@@ -25,6 +25,7 @@
 #include "./daemon/zone.hpp"
 #include "./daemon/db-mgr.hpp"
 #include "./daemon/rrset.hpp"
+#include "./daemon/rrset-factory.hpp"
 #include "./clients/response.hpp"
 
 #include <stdexcept>
@@ -147,10 +148,31 @@ public:
 
   /** @brief add rrset to the NDNS local database
    *
+   *  If the rrset's label size is larger than 1, or
+   *  the rrset will override a AUTH record, throw an Error
+   *
    *  @param rrset rrset
    */
   void
   addRrset(Rrset& rrset);
+
+  /** @brief add delegated rrset to the NDNS local database
+   *
+   *  Multi-level AUTH records will be added automatically
+   *  Process:
+   *    1. Check that whether automatically added AUTH records will override a LINK record. If yes, throw an Error
+   *    2. Check that whether the rrset will override a AUTH record or not. If yes, throw an Error
+   *    3. Insert AUTH records and the rrset record.
+   *
+   *  @param rrset rrset
+   *  @param zoneRrFactory that is used for generate AUTH packet
+   *  @param authTtl
+   */
+  void
+  addDelegatedRrset(Rrset& rrset,
+                    RrsetFactory& zoneRrFactory,
+                    const time::seconds& authTtl);
+
 
   /** @brief remove rrset from the NDNS local database
    *
