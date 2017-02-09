@@ -20,6 +20,8 @@
 #ifndef COMMON_HPP
 #define COMMON_HPP
 
+#include <ndn-cxx/security/v2/key-chain.hpp>
+
 #ifdef NDNS_HAVE_TESTS
 #define NDNS_VIRTUAL_WITH_TESTS virtual
 #define NDNS_PUBLIC_WITH_TESTS_ELSE_PROTECTED public
@@ -32,7 +34,15 @@
 #define NDNS_PROTECTED_WITH_TESTS_ELSE_PRIVATE private
 #endif
 
+namespace ndn {
+namespace ndns {
 
+using ndn::security::v2::KeyChain;
+using ndn::security::Identity;
+using ndn::security::v2::Certificate;
+
+}
+}
 
 
 

@@ -123,7 +123,7 @@ main(int argc, char* argv[])
     else
       certTtl = time::seconds(certTtlInt);
 
-    ndn::KeyChain keyChain;
+    ndn::ndns::KeyChain keyChain;
     ndn::ndns::ManagementTool tool(db, keyChain);
     tool.createZone(zone, parent, cacheTtl, certTtl, ksk, dsk);
   }

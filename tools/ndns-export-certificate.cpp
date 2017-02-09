@@ -93,7 +93,7 @@ main(int argc, char* argv[])
   try {
     Name certName(certStr);
 
-    ndn::KeyChain keyChain;
+    ndn::ndns::KeyChain keyChain;
     ndn::ndns::ManagementTool tool(db, keyChain);
     tool.exportCertificate(certName, output);
   }

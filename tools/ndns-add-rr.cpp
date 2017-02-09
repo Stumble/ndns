@@ -145,7 +145,7 @@ main(int argc, char* argv[])
     Name zoneName(zoneStr);
     Name label(rrLabelStr);
     name::Component type(rrTypeStr);
-    ndn::KeyChain keyChain;
+    ndn::ndns::KeyChain keyChain;
 
     time::seconds ttl;
     if (ttlInt == -1)

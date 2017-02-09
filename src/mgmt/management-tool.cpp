@@ -21,6 +21,7 @@
 #include "logger.hpp"
 #include "ndns-label.hpp"
 #include "ndns-tlv.hpp"
+#include "util/cert-helper.hpp"
 
 #include <string>
 #include <iomanip>
@@ -56,88 +57,88 @@ ManagementTool::createZone(const Name &zoneName,
                            const Name& kskCertName,
                            const Name& dskCertName)
 {
-  bool isRoot = zoneName == ROOT_ZONE;
+//   bool isRoot = zoneName == ROOT_ZONE;
 
-  //check preconditions
-  Zone zone(zoneName, cacheTtl);
-  if (m_dbMgr.find(zone)) {
-    throw Error(zoneName.toUri() + " is already presented in the NDNS db");
-  }
+//   //check preconditions
+//   Zone zone(zoneName, cacheTtl);
+//   if (m_dbMgr.find(zone)) {
+//     throw Error(zoneName.toUri() + " is already presented in the NDNS db");
+//   }
 
-  if (!isRoot && parentZoneName.equals(zoneName)) {
-    throw Error("Parent zone name can not be the zone itself");
-  }
+//   if (!isRoot && parentZoneName.equals(zoneName)) {
+//     throw Error("Parent zone name can not be the zone itself");
+//   }
 
-  if (!isRoot && !parentZoneName.isPrefixOf(zoneName)) {
-    throw Error(parentZoneName.toUri() + " is not a prefix of " + zoneName.toUri());
-  }
+//   if (!isRoot && !parentZoneName.isPrefixOf(zoneName)) {
+//     throw Error(parentZoneName.toUri() + " is not a prefix of " + zoneName.toUri());
+//   }
 
-  // if dsk is provided, there is no need to check ksk
-  if (dskCertName != DEFAULT_CERT) {
-    if (!matchCertificate(dskCertName, zoneName)) {
-      throw Error("Cannot verify DSK certificate");
-    }
-  }
-  else if (kskCertName != DEFAULT_CERT) {
-    if (!matchCertificate(kskCertName, zoneName)) {
-      throw Error("Cannot verify KSK certificate");
-    }
-  }
+//   // if dsk is provided, there is no need to check ksk
+//   if (dskCertName != DEFAULT_CERT) {
+//     if (!matchCertificate(dskCertName, zoneName)) {
+//       throw Error("Cannot verify DSK certificate");
+//     }
+//   }
+//   else if (kskCertName != DEFAULT_CERT) {
+//     if (!matchCertificate(kskCertName, zoneName)) {
+//       throw Error("Cannot verify KSK certificate");
+//     }
+//   }
 
-  if (kskCertName == DEFAULT_CERT && isRoot) {
-    throw Error("Cannot generate KSK for root zone");
-  }
+//   if (kskCertName == DEFAULT_CERT && isRoot) {
+//     throw Error("Cannot generate KSK for root zone");
+//   }
 
-  //first generate KSK and DSK to the keyChain system, and add DSK as default
-  NDNS_LOG_INFO("Start generating KSK and DSK and their corresponding certificates");
-  Name dskName;
-  shared_ptr<IdentityCertificate> dskCert;
-  if (dskCertName == DEFAULT_CERT) {
-    // if no dsk provided, then generate a dsk either signed by ksk auto generated or user provided
-    time::system_clock::TimePoint notBefore = time::system_clock::now();
-    time::system_clock::TimePoint notAfter = notBefore + certValidity;
-    shared_ptr<IdentityCertificate> kskCert;
+//   //first generate KSK and DSK to the keyChain system, and add DSK as default
+//   NDNS_LOG_INFO("Start generating KSK and DSK and their corresponding certificates");
+//   Name dskName;
+//   shared_ptr<IdentityCertificate> dskCert;
+//   if (dskCertName == DEFAULT_CERT) {
+//     // if no dsk provided, then generate a dsk either signed by ksk auto generated or user provided
+//     time::system_clock::TimePoint notBefore = time::system_clock::now();
+//     time::system_clock::TimePoint notAfter = notBefore + certValidity;
+//     shared_ptr<IdentityCertificate> kskCert;
 
-    if (kskCertName == DEFAULT_CERT) {
-      //create KSK's certificate
-      Name kskName = m_keyChain.generateRsaKeyPair(zoneName, true);
-      std::vector<CertificateSubjectDescription> kskDesc;
-      kskCert = m_keyChain.prepareUnsignedIdentityCertificate(kskName, zoneName, notBefore,
-                                                              notAfter, kskDesc, parentZoneName);
-      kskCert->setFreshnessPeriod(cacheTtl);
+//     if (kskCertName == DEFAULT_CERT) {
+//       //create KSK's certificate
+//       Name kskName = m_keyChain.generateRsaKeyPair(zoneName, true);
+//       std::vector<CertificateSubjectDescription> kskDesc;
+//       kskCert = m_keyChain.prepareUnsignedIdentityCertificate(kskName, zoneName, notBefore,
+//                                                               notAfter, kskDesc, parentZoneName);
+//       kskCert->setFreshnessPeriod(cacheTtl);
 
-      m_keyChain.selfSign(*kskCert);
-      m_keyChain.addCertificate(*kskCert);
-      NDNS_LOG_INFO("Generated KSK: " << kskCert->getName());
-    }
-    else {
-      kskCert = m_keyChain.getCertificate(kskCertName);
-    }
+//       m_keyChain.selfSign(*kskCert);
+//       m_keyChain.addCertificate(*kskCert);
+//       NDNS_LOG_INFO("Generated KSK: " << kskCert->getName());
+//     }
+//     else {
+//       kskCert = m_keyChain.getCertificate(kskCertName);
+//     }
 
-    dskName = m_keyChain.generateRsaKeyPairAsDefault(zoneName, false);
-    //create DSK's certificate
-    std::vector<CertificateSubjectDescription> dskDesc;
-    dskCert = m_keyChain.prepareUnsignedIdentityCertificate(dskName, zoneName, notBefore, notAfter,
-                                                            dskDesc, zoneName);
-    dskCert->setFreshnessPeriod(cacheTtl);
-    m_keyChain.sign(*dskCert, kskCert->getName());
-    m_keyChain.addCertificateAsKeyDefault(*dskCert);
-    NDNS_LOG_INFO("Generated DSK: " << dskCert->getName());
-  }
-  else {
-    dskCert = m_keyChain.getCertificate(dskCertName);
-    dskName = dskCert->getPublicKeyName();
-    m_keyChain.setDefaultKeyNameForIdentity(dskName);
-    m_keyChain.setDefaultCertificateNameForKey(dskCert->getName());
-  }
+//     dskName = m_keyChain.generateRsaKeyPairAsDefault(zoneName, false);
+//     //create DSK's certificate
+//     std::vector<CertificateSubjectDescription> dskDesc;
+//     dskCert = m_keyChain.prepareUnsignedIdentityCertificate(dskName, zoneName, notBefore, notAfter,
+//                                                             dskDesc, zoneName);
+//     dskCert->setFreshnessPeriod(cacheTtl);
+//     m_keyChain.sign(*dskCert, kskCert->getName());
+//     m_keyChain.addCertificateAsKeyDefault(*dskCert);
+//     NDNS_LOG_INFO("Generated DSK: " << dskCert->getName());
+//   }
+//   else {
+//     dskCert = m_keyChain.getCertificate(dskCertName);
+//     dskName = dskCert->getPublicKeyName();
+//     m_keyChain.setDefaultKeyNameForIdentity(dskName);
+//     m_keyChain.setDefaultCertificateNameForKey(dskCert->getName());
+//   }
 
-  //second add zone to the database
-  NDNS_LOG_INFO("Start adding new zone to data base");
-  addZone(zone);
+//   //second add zone to the database
+//   NDNS_LOG_INFO("Start adding new zone to data base");
+//   addZone(zone);
 
-  //third create ID-cert
-  NDNS_LOG_INFO("Start creating DSK's ID-CERT");
-  addIdCert(zone, dskCert, cacheTtl);
+//   //third create ID-cert
+//   NDNS_LOG_INFO("Start creating DSK's ID-CERT");
+//   addIdCert(zone, dskCert, cacheTtl);
 }
 
 void
@@ -163,38 +164,39 @@ void
 ManagementTool::exportCertificate(const Name& certName, const std::string& outFile)
 {
   //search for the certificate, start from KeyChain then local NDNS database
-  shared_ptr<IdentityCertificate> cert;
-  if (m_keyChain.doesCertificateExist(certName)) {
-    cert = m_keyChain.getCertificate(certName);
-  }
-  else {
-    shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<KEY>(<>+)<ID-CERT><>");
-    if (regex->match(certName) != true) {
-      throw Error("Certificate name is illegal");
-    }
-    Name zoneName = regex->expand("\\1");
-    Name label = regex->expand("\\2");
+  // shared_ptr<IdentityCertificate> cert;
+  // if (m_keyChain.doesCertificateExist(certName)) {
+  //   cert = m_keyChain.getCertificate(certName);
+  // }
+  // else {
+  // get certificate
+    // shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<KEY>(<>+)<ID-CERT><>");
+    // if (regex->match(certName) != true) {
+    //   throw Error("Certificate name is illegal");
+    // }
+    // Name zoneName = regex->expand("\\1");
+    // Name label = regex->expand("\\2");
 
-    Zone zone(zoneName);
-    Rrset rrset(&zone);
-    rrset.setLabel(label);
-    rrset.setType(label::CERT_RR_TYPE);
-    if (m_dbMgr.find(rrset)) {
-      Data data(rrset.getData());
-      cert = make_shared<IdentityCertificate>(data);
-    }
-    else {
-      throw Error("Cannot find the cert: " + certName.toUri());
-    }
-  }
+    // Zone zone(zoneName);
+    // Rrset rrset(&zone);
+    // rrset.setLabel(label);
+    // rrset.setType(label::CERT_RR_TYPE);
+    // if (m_dbMgr.find(rrset)) {
+    //   Data data(rrset.getData());
+    //   cert = make_shared<IdentityCertificate>(data);
+    // }
+    // else {
+    //   throw Error("Cannot find the cert: " + certName.toUri());
+    // }
+  // }
 
-  if (outFile == DEFAULT_IO) {
-    ndn::io::save(*cert, std::cout);
-  }
-  else {
-    ndn::io::save(*cert, outFile);
-    NDNS_LOG_INFO("save cert to file: " << outFile);
-  }
+  // if (outFile == DEFAULT_IO) {
+  //   ndn::io::save(*cert, std::cout);
+  // }
+  // else {
+  //   ndn::io::save(*cert, outFile);
+  //   NDNS_LOG_INFO("save cert to file: " << outFile);
+  // }
 }
 
 void
@@ -287,8 +289,8 @@ ManagementTool::addRrsetFromFile(const Name& zoneName,
   Name dskName;
   Name dskCertName = inputDskCertName;
   if (dskCertName == DEFAULT_CERT) {
-    dskName = m_keyChain.getDefaultKeyNameForIdentity(zoneName);
-    dskCertName = m_keyChain.getDefaultCertificateNameForKey(dskName);
+    dskName = getDefaultKeyNameForIdentity(m_keyChain, zoneName);
+    dskCertName = getDefaultCertificateNameForIdentity(m_keyChain, zoneName);
   }
   else {
     if (!matchCertificate(dskCertName, zoneName)) {
@@ -479,9 +481,9 @@ ManagementTool::listAllZones(std::ostream& os) {
     os << zone.getName().toUri();
 
     os << "; default-ttl=" << zone.getTtl().count();
-    os << " default-key=" << m_keyChain.getDefaultKeyNameForIdentity(zone.getName());
+    os << " default-key=" << getDefaultKeyNameForIdentity(m_keyChain, zone.getName());
     os << " default-certificate="
-       << m_keyChain.getDefaultCertificateNameForIdentity(zone.getName());
+       << getDefaultCertificateNameForIdentity(m_keyChain, zone.getName());
     os << std::endl;
   }
 }
@@ -569,26 +571,12 @@ ManagementTool::removeZone(Zone& zone)
 bool
 ManagementTool::matchCertificate(const Name& certName, const Name& identity)
 {
-  if (!m_keyChain.doesCertificateExist(certName)) {
-    NDNS_LOG_WARN(certName.toUri() << " is not presented in KeyChain");
+  try {
+    getCertificate(m_keyChain, identity, certName);
+    return true;
+  } catch (ndn::security::Pib::Error) {
     return false;
   }
-
-  //check its public key information
-  shared_ptr<IdentityCertificate> cert = m_keyChain.getCertificate(certName);
-  Name keyName = cert->getPublicKeyName();
-
-  if (!identity.isPrefixOf(keyName) || identity.size()!=keyName.size()-1) {
-    NDNS_LOG_WARN(keyName.toUri() << " is not a key of " << identity.toUri());
-    return false;
-  }
-
-  if (!m_keyChain.doesKeyExistInTpm(keyName, KeyClass::PRIVATE)) {
-    NDNS_LOG_WARN("Private key: " << keyName.toUri() << " is not present in KeyChain");
-    return false;
-  }
-
-  return true;
 }
 
 void

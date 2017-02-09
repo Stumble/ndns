@@ -22,6 +22,8 @@
 #include "config.hpp"
 #include "daemon/config-file.hpp"
 #include "ndn-cxx/security/key-chain.hpp"
+#include "util/cert-helper.hpp"
+
 #include <boost/program_options.hpp>
 
 namespace ndn {
@@ -112,15 +114,9 @@ public:
           ;
         }
 
-
-        if (!m_keyChain.doesIdentityExist(name)) {
-          NDNS_LOG_FATAL("Identity: " << name << " does not exist in the KeyChain");
-          throw Error("Identity does not exist in the KeyChain");
-        }
-
         if (cert.empty()) {
           try {
-            cert = m_keyChain.getDefaultCertificateNameForIdentity(name);
+            cert = getDefaultCertificateNameForIdentity(m_keyChain, name);
           }
           catch (std::exception& e) {
             NDNS_LOG_FATAL("Identity: " << name << " does not have default certificate. "
@@ -129,8 +125,10 @@ public:
           }
         }
         else {
-          if (!m_keyChain.doesCertificateExist(cert)) {
-            throw Error("Certificate `" + cert.toUri() + "` does not exist in the KeyChain");
+          try {
+            getCertificate(m_keyChain, name, cert);
+          } catch (std::exception& e) {
+             throw Error("Certificate `" + cert.toUri() + "` does not exist in the KeyChain");
           }
         }
         NDNS_LOG_TRACE("name = " << name << " cert = " << cert);

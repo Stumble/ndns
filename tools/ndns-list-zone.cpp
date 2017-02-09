@@ -97,7 +97,7 @@ main(int argc, char* argv[])
   try {
     Name zoneName(zoneStr);
 
-    ndn::KeyChain keyChain;
+    ndn::ndns::KeyChain keyChain;
     ndn::ndns::ManagementTool tool(db, keyChain);
     tool.listZone(zoneName, std::cout, printRaw);
   }

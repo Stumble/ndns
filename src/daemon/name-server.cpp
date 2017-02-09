@@ -20,6 +20,7 @@
 #include "name-server.hpp"
 #include "logger.hpp"
 #include <ndn-cxx/encoding/encoding-buffer.hpp>
+#include <ndn-cxx/security/signing-helpers.hpp>
 
 namespace ndn {
 namespace ndns {
@@ -39,11 +40,6 @@ NameServer::NameServer(const Name& zoneName, const Name& certName, Face& face, D
   , m_keyChain(keyChain)
   , m_validator(validator)
 {
-  if (!m_keyChain.doesCertificateExist(m_certName)) {
-    NDNS_LOG_FATAL("Certificate: " << m_certName << " does not exist");
-    throw Error("certificate does not exist in the KeyChain: " + m_certName.toUri());
-  }
-
   m_dbMgr.find(m_zone);
 
   if (m_zone.getId() == 0) {
@@ -109,7 +105,7 @@ NameServer::handleQuery(const Name& prefix, const Interest& interest, const labe
     answer->setFreshnessPeriod(this->getContentFreshness());
     answer->setContentType(NDNS_NACK);
 
-    m_keyChain.sign(*answer, m_certName);
+    m_keyChain.sign(*answer, signingByCertificate(m_certName));
     NDNS_LOG_TRACE("answer query with NDNS-NACK: " << answer->getName());
     m_face.put(*answer);
   }
@@ -212,7 +208,7 @@ NameServer::doUpdate(const shared_ptr<const Interest>& interest,
                   << ". Update may need sudo privilege to write DbFile");
     NDNS_LOG_TRACE("exception happens and answer update with UPDATE_FAILURE");
   }
-  m_keyChain.sign(*answer, m_certName);
+  m_keyChain.sign(*answer, signingByCertificate(m_certName));
   m_face.put(*answer);
 }
 
