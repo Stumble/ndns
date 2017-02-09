@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-/**
- * Copyright (c) 2014, Regents of the University of California.
+/*
+ * Copyright (c) 2014-2017, Regents of the University of California.
  *
  * This file is part of NDNS (Named Data Networking Domain Name Service).
  * See AUTHORS.md for complete list of NDNS authors and contributors.
@@ -22,9 +22,8 @@
 
 #include "config.hpp"
 
-#include "ndn-cxx/data.hpp"
-#include <ndn-cxx/security/validator-config.hpp>
-
+#include <ndn-cxx/data.hpp>
+#include <ndn-cxx/security/v2/validator.hpp>
 
 namespace ndn {
 namespace ndns {
@@ -43,7 +42,12 @@ namespace ndns {
  *    Validator rule is must for NDNS, the daemon/dig/update must work even without manually edit
  * 3) some wrapper provides default behavior when verification succeeds or fails
  */
-class Validator : public ValidatorConfig
+
+using security::v2::DataValidationSuccessCallback;
+using security::v2::DataValidationFailureCallback;
+using security::v2::ValidationError;
+
+class ValidatorNdns : public security::v2::Validator
 {
 
 public:
@@ -51,30 +55,31 @@ public:
 
   /**
    * @brief the callback function which is called after validation finishes
-   */
+  */
   explicit
-  Validator(Face& face, const std::string& confFile = VALIDATOR_CONF_FILE);
+  ValidatorNdns(Face& face, const std::string& confFile = VALIDATOR_CONF_FILE);
 
   /**
    * @brief validate the Data
    */
   virtual void
   validate(const Data& data,
-           const OnDataValidated& onValidated,
-           const OnDataValidationFailed& onValidationFailed);
+           const DataValidationSuccessCallback& onValidated,
+           const DataValidationFailureCallback& onValidationFailed);
 
 private:
   /**
    * @brief the default callback function on data validated
    */
   void
-  onDataValidated(const shared_ptr<const Data>& data);
+  onDataValidated(const Data& data);
 
   /**
    * @brief the default callback function on data validation failed
    */
   void
-  onDataValidationFailed(const shared_ptr<const Data>& data, const std::string& str);
+  onDataValidationFailed(const Data& data,
+                         const security::v2::ValidationError& str);
 
 };
 

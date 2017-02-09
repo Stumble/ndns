@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-/**
- * Copyright (c) 2014-2016, Regents of the University of California.
+/*
+ * Copyright (c) 2014-2017, Regents of the University of California.
  *
  * This file is part of NDNS (Named Data Networking Domain Name Service).
  * See AUTHORS.md for complete list of NDNS authors and contributors.
@@ -32,8 +32,10 @@
 #include <boost/filesystem.hpp>
 #include <boost/noncopyable.hpp>
 
+#include <iostream>
 #include <memory>
 #include <string>
+#include <fstream>
 
 NDNS_LOG_INIT("NdnsDig")
 
@@ -78,7 +80,7 @@ public:
       m_ctr->start(); // non-block, may throw exception
       m_face.processEvents();
     }
-    catch (std::exception& e) {
+    catch (const std::exception& e) {
       std::cerr << "Error: " << e.what();
       m_hasError = true;
     }
@@ -116,7 +118,7 @@ private:
           NDNS_LOG_INFO("succeed to get the info from RR[" << i << "]"
                         "type=" << rr.type() << " content=" << msg);
         }
-        catch (std::exception& e) {
+        catch (const std::exception& e) {
           NDNS_LOG_INFO("error to get the info from RR[" << i << "]"
                         "type=" << rr.type());
         }
@@ -161,14 +163,14 @@ private:
   }
 
   void
-  onDataValidated(const shared_ptr<const Data>& data)
+  onDataValidated(const Data& data)
   {
     NDNS_LOG_INFO("final data pass verification");
     this->stop();
   }
 
   void
-  onDataValidationFailed(const shared_ptr<const Data>& data, const std::string& str)
+  onDataValidationFailed(const Data& data, const ValidationError& err)
   {
     NDNS_LOG_INFO("final data does not pass verification");
     m_hasError = true;
@@ -203,7 +205,7 @@ private:
 
   Face m_face;
 
-  Validator m_validator;
+  ValidatorNdns m_validator;
   bool m_shouldValidateIntermediate;
   std::unique_ptr<QueryController> m_ctr;
 
@@ -318,10 +320,6 @@ main(int argc, char* argv[])
       return 1;
     else
       return 0;
-  }
-  catch (const ndn::ValidatorConfig::Error& e) {
-    std::cerr << "Fail to create the validator: " << e.what() << std::endl;
-    return 1;
   }
   catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << std::endl;

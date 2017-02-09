@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-/**
- * Copyright (c) 2014, Regents of the University of California.
+/*
+ * Copyright (c) 2014-2017, Regents of the University of California.
  *
  * This file is part of NDNS (Named Data Networking Domain Name Service).
  * See AUTHORS.md for complete list of NDNS authors and contributors.
@@ -17,106 +17,139 @@
  * NDNS, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "validator.hpp"
 #include "logger.hpp"
 #include "config.hpp"
-#include "validator.hpp"
 
-#include "ndn-cxx/data.hpp"
-#include <ndn-cxx/security/validator-config.hpp>
+#include <ndn-cxx/security/v2/validation-policy-config.hpp>
+#include <ndn-cxx/security/v2/certificate-fetcher-from-network.hpp>
 
+#include <boost/algorithm/string/replace.hpp>
 
 namespace ndn {
 namespace ndns {
 
 NDNS_LOG_INIT("validator")
 
-std::string Validator::VALIDATOR_CONF_FILE = DEFAULT_CONFIG_PATH "/" "validator.conf";
+using ndn::security::v2::ValidationPolicyConfig;
 
-Validator::Validator(Face& face, const std::string& confFile /* = VALIDATOR_CONF_FILE */)
-  : ValidatorConfig(face)
+std::string ValidatorNdns::VALIDATOR_CONF_FILE = DEFAULT_CONFIG_PATH "/" "validator.conf";
+
+ValidatorNdns::ValidatorNdns(Face& face, const std::string& confFile /* = VALIDATOR_CONF_FILE */)
+  : Validator(make_unique<security::v2::ValidationPolicyConfig>(),
+              make_unique<security::v2::CertificateFetcherFromNetwork>(face))
 {
+  ValidationPolicyConfig& policyConfig = dynamic_cast<ValidationPolicyConfig&>(Validator::getPolicy());
   try {
-    this->load(confFile);
+    policyConfig.load(confFile);
     NDNS_LOG_TRACE("Validator loads configuration: " << confFile);
   }
-  catch (std::exception&) {
+  catch (const security::v2::validator_config::Error& e) {
     std::string config =
-      "rule                                                                       \n"
-      "{                                                                          \n"
-      "  id \"NDNS Validator\"                                                    \n"
-      "  for data                                                                 \n"
-      "  checker                                                                  \n"
-      "  {                                                                        \n"
-      "    type customized                                                        \n"
-      "    sig-type rsa-sha256                                                    \n"
-      "    key-locator                                                            \n"
-      "    {                                                                      \n"
-      "      type name                                                            \n"
-      "      hyper-relation                                                       \n"
-      "      {                                                                    \n"
-      "        k-regex ^(<>*)<KEY>(<>*)<><ID-CERT>$                               \n"
-      "        k-expand \\\\1\\\\2                                                \n"
-      "        h-relation is-prefix-of                                            \n"
-      "        p-regex ^(<>*)[<KEY><NDNS>](<>*)<><>$                              \n"
-      "        p-expand \\\\1\\\\2                                                \n"
-      "      }                                                                    \n"
-      "    }                                                                      \n"
-      "  }                                                                        \n"
-      "}                                                                          \n"
-      "                                                                           \n"
-      "                                                                           \n"
-      "trust-anchor                                                               \n"
-      "{                                                                          \n"
-      "  type file                                                                \n"
-      "  file-name \""
-      ;
+R"VALUE(
+rule
+{
+  id "NDNS KEY signing rule"
+  for data
+  filter
+  {
+    type name
+    regex ^([^<NDNS>]*)<NDNS><KEY><><><>$
+  }
+  checker
+  {
+    type customized
+    sig-type ecdsa-sha256
+    key-locator
+    {
+      type name
+      hyper-relation
+      {
+        k-regex ^([^<NDNS>]*)<NDNS>(<>*)<KEY><>$
+        k-expand \\1\\2
+        h-relation is-prefix-of ; ksk should be signed by dkey in parent zone
+        p-regex ^([^<NDNS>]*)<NDNS><KEY><><><>$
+        p-expand \\1
+      }
+    }
+  }
+}
 
-    config += DEFAULT_CONFIG_PATH "/" "anchors/root.cert";
+rule
+{
+  id "NDNS data signing rule"
+  for data
+  filter
+  {
+    type name
+    regex ^([^<NDNS>]*)<NDNS>(<>*)<><>$
+  }
+  checker
+  {
+    type customized
+    sig-type ecdsa-sha256
+    key-locator
+    {
+      type name
+      hyper-relation
+      {
+        k-regex ^([^<NDNS>]*)<NDNS><KEY><>$
+        k-expand \\1
+        h-relation equal; data should be signed by dsk
+        p-regex ^([^<NDNS>]*)<NDNS>(<>*)<><>$
+        p-expand \\1
+      }
+    }
+  }
+}
 
-    config +=
-      "\"                                                                         \n"
-      "}                                                                          \n"
-      "                                                                           \n"
-      ;
+trust-anchor
+{
+  type file
+  file-name ANCHORFILE
+}
+)VALUE";
 
-    this->load(config, "embededConf");
+    boost::replace_last(config, "ANCHORFILE",  DEFAULT_CONFIG_PATH "/" "anchors/root.cert");
+    policyConfig.load(config, "embededConf");
     NDNS_LOG_TRACE("Validator loads embedded configuration with anchors path: anchors/root.cert");
   }
 
 }
 
 void
-Validator::validate(const Data& data,
-                    const OnDataValidated& onValidated,
-                    const OnDataValidationFailed& onValidationFailed)
+ValidatorNdns::validate(const Data& data,
+                        const DataValidationSuccessCallback& onValidated,
+                        const DataValidationFailureCallback& onValidationFailed)
 {
   NDNS_LOG_TRACE("[* ?? *] verify data: " << data.getName() << ". KeyLocator: "
                  << data.getSignature().getKeyLocator().getName());
-  ValidatorConfig::validate(data,
-                            [this, onValidated] (const shared_ptr<const Data>& data) {
-                              this->onDataValidated(data);
-                              onValidated(data);
-                            },
-                            [this, onValidationFailed] (const shared_ptr<const Data>& data,
-                                                        const std::string& str) {
-                              this->onDataValidationFailed(data, str);
-                              onValidationFailed(data, str);
-                            }
-                            );
+  Validator::validate(data,
+                      [this, onValidated] (const Data& data) {
+                        this->onDataValidated(data);
+                        onValidated(data);
+                      },
+                      [this, onValidationFailed] (const Data& data,
+                                                  const ValidationError& error) {
+                        this->onDataValidationFailed(data, error);
+                        onValidationFailed(data, error);
+                      }
+                      );
 }
 
 void
-Validator::onDataValidated(const shared_ptr<const Data>& data)
+ValidatorNdns::onDataValidated(const Data& data)
 {
-  NDNS_LOG_TRACE("[* VV *] pass validation: " << data->getName() << ". KeyLocator = "
-                 << data->getSignature().getKeyLocator().getName());
+  NDNS_LOG_TRACE("[* VV *] pass validation: " << data.getName() << ". KeyLocator = "
+                 << data.getSignature().getKeyLocator().getName());
 }
 
 void
-Validator::onDataValidationFailed(const shared_ptr<const Data>& data, const std::string& str)
+ValidatorNdns::onDataValidationFailed(const Data& data,
+                                      const security::v2::ValidationError& err)
 {
-  NDNS_LOG_WARN("[* XX *] fail validation: " << data->getName() << ". due to: " << str
-                << ". KeyLocator = " << data->getSignature().getKeyLocator().getName());
+  NDNS_LOG_WARN("[* XX *] fail validation: " << data.getName() << ". due to: " << err
+                << ". KeyLocator = " << data.getSignature().getKeyLocator().getName());
 }
 
 } // namespace ndns
