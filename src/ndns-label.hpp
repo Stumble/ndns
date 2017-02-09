@@ -45,9 +45,9 @@ const name::Component NDNS_ITERATIVE_QUERY("NDNS");
 // const name::Component NDNS_RECURSIVE_QUERY("NDNS-R");
 
 /**
- * @brief NDNS ID-CERT query type
+ * @brief NDNS CERT query type
  */
-const name::Component NDNS_CERT_QUERY("KEY");
+const name::Component NDNS_CERT_QUERY("NDNS");
 
 /////////////////////////////////////////////
 
@@ -65,9 +65,9 @@ const name::Component NDNS_UPDATE_LABEL("UPDATE");
 const name::Component NS_RR_TYPE("NS");
 
 /**
- * @brief ID-CERT resource record type
+ * @brief CERT resource record type
  */
-const name::Component CERT_RR_TYPE("ID-CERT");
+const name::Component CERT_RR_TYPE("CERT");
 
 /**
  * @brief TXT resource record type

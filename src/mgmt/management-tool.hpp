@@ -30,7 +30,6 @@
 
 #include <stdexcept>
 #include <ndn-cxx/common.hpp>
-#include <ndn-cxx/security/identity-certificate.hpp>
 #include <ndn-cxx/security/key-chain.hpp>
 #include <ndn-cxx/util/io.hpp>
 
@@ -77,7 +76,7 @@ public:
    *  Specifically, It will generate a KSK and a DSK (and their certificates) to the following
    *  places:
    *  1. Local NDNS database: a new zone is added.
-   *  2. Local NDNS database: an ID-CERT of the DSK is added.
+   *  2. Local NDNS database: an CERT of the DSK is added.
    *  3. KeyChain: an identity named with zone name is added.
    *  4. KeyChain: a KSK and its self-signed certificate is added. The ownership of the KSK is the
    *  parent zone.
@@ -98,7 +97,7 @@ public:
    *  @param dskCertName if given, a zone will be created with this dsk certificate and provided
    *                     ksk certificate will be ignored
    */
-  void
+  Zone
   createZone(const Name& zoneName,
              const Name& parentZoneName,
              const time::seconds& cacheTtl = DEFAULT_CACHE_TTL,
@@ -111,7 +110,7 @@ public:
    *  Specifically, It will do the following things:
    *  1) KeyChain System: delete the Identity with zone name and all its keys/certificates
    *  2) Local NDNS database: delete the zone record
-   *  3) Local NDNS database: delete the ID-CERT of the zone's DSK
+   *  3) Local NDNS database: delete the CERT of the zone's DSK
    */
   void
   deleteZone(const Name& zoneName);
@@ -224,10 +223,12 @@ public:
   listAllZones(std::ostream& os);
 
 private:
-  /** @brief add ID-CERT to the NDNS local database
+  /** @brief add CERT to the NDNS local database
    */
   void
-  addIdCert(Zone& zone, shared_ptr<IdentityCertificate> cert, const time::seconds& ttl);
+  addIdCert(Zone& zone, const Certificate& cert,
+            const time::seconds& ttl,
+            const Certificate& dskCertName);
 
   /** @brief add zone to the NDNS local database
    */

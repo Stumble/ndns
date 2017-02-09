@@ -20,6 +20,7 @@
 #include "name-server.hpp"
 #include "logger.hpp"
 #include <ndn-cxx/encoding/encoding-buffer.hpp>
+#include <ndn-cxx/security/signing-helpers.hpp>
 
 namespace ndn {
 namespace ndns {
@@ -28,22 +29,16 @@ NDNS_LOG_INIT("NameServer")
 const time::milliseconds NAME_SERVER_DEFAULT_CONTENT_FRESHNESS(4000);
 
 NameServer::NameServer(const Name& zoneName, const Name& certName, Face& face, DbMgr& dbMgr,
-                       KeyChain& keyChain, Validator& validator)
+                       KeyChain& keyChain, ValidatorNdns& validator)
   : m_zone(zoneName)
   , m_dbMgr(dbMgr)
   , m_ndnsPrefix(zoneName)
-  , m_keyPrefix(zoneName)
   , m_certName(certName)
   , m_contentFreshness(NAME_SERVER_DEFAULT_CONTENT_FRESHNESS)
   , m_face(face)
   , m_keyChain(keyChain)
   , m_validator(validator)
 {
-  if (!m_keyChain.doesCertificateExist(m_certName)) {
-    NDNS_LOG_FATAL("Certificate: " << m_certName << " does not exist");
-    throw Error("certificate does not exist in the KeyChain: " + m_certName.toUri());
-  }
-
   m_dbMgr.find(m_zone);
 
   if (m_zone.getId() == 0) {
@@ -52,20 +47,14 @@ NameServer::NameServer(const Name& zoneName, const Name& certName, Face& face, D
   }
 
   m_ndnsPrefix.append(ndns::label::NDNS_ITERATIVE_QUERY);
-  m_keyPrefix.append(ndns::label::NDNS_CERT_QUERY);
 
   m_face.setInterestFilter(m_ndnsPrefix,
                            bind(&NameServer::onInterest, this, _1, _2),
                            bind(&NameServer::onRegisterFailed, this, _1, _2)
                            );
 
-  m_face.setInterestFilter(m_keyPrefix,
-                           bind(&NameServer::onInterest, this, _1, _2),
-                           bind(&NameServer::onRegisterFailed, this, _1, _2)
-                           );
-
   NDNS_LOG_INFO("Zone: " << m_zone.getName() << " binds "
-                << "Prefix: " << m_ndnsPrefix << " and " << m_keyPrefix
+                << "Prefix: " << m_ndnsPrefix
                 << " with Certificate: " << m_certName
                 );
 }
@@ -109,7 +98,7 @@ NameServer::handleQuery(const Name& prefix, const Interest& interest, const labe
     answer->setFreshnessPeriod(this->getContentFreshness());
     answer->setContentType(NDNS_NACK);
 
-    m_keyChain.sign(*answer, m_certName);
+    m_keyChain.sign(*answer, signingByCertificate(m_certName));
     NDNS_LOG_TRACE("answer query with NDNS-NACK: " << answer->getName());
     m_face.put(*answer);
   }
@@ -133,7 +122,7 @@ NameServer::handleUpdate(const Name& prefix, const Interest& interest, const lab
     }
     m_validator.validate(*data,
                          bind(&NameServer::doUpdate, this, interest.shared_from_this(), data),
-                         [this] (const shared_ptr<const Data>& data, const std::string& msg) {
+                         [this] (const Data& data, const ValidationError& msg) {
                            NDNS_LOG_WARN("Ignoring update that did not pass the verification. "
                                          << "Check the root certificate")
                          });
@@ -212,7 +201,7 @@ NameServer::doUpdate(const shared_ptr<const Interest>& interest,
                   << ". Update may need sudo privilege to write DbFile");
     NDNS_LOG_TRACE("exception happens and answer update with UPDATE_FAILURE");
   }
-  m_keyChain.sign(*answer, m_certName);
+  m_keyChain.sign(*answer, signingByCertificate(m_certName));
   m_face.put(*answer);
 }
 

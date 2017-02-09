@@ -34,6 +34,7 @@
 
 #include <memory>
 #include <string>
+#include <fstream>
 
 NDNS_LOG_INIT("NdnsDig")
 
@@ -161,14 +162,14 @@ private:
   }
 
   void
-  onDataValidated(const shared_ptr<const Data>& data)
+  onDataValidated(const Data& data)
   {
     NDNS_LOG_INFO("final data pass verification");
     this->stop();
   }
 
   void
-  onDataValidationFailed(const shared_ptr<const Data>& data, const std::string& str)
+  onDataValidationFailed(const Data& data, const ValidationError& err)
   {
     NDNS_LOG_INFO("final data does not pass verification");
     m_hasError = true;
@@ -203,7 +204,7 @@ private:
 
   Face m_face;
 
-  Validator m_validator;
+  ValidatorNdns m_validator;
   bool m_shouldValidateIntermediate;
   std::unique_ptr<QueryController> m_ctr;
 
@@ -319,7 +320,7 @@ main(int argc, char* argv[])
     else
       return 0;
   }
-  catch (const ndn::ValidatorConfig::Error& e) {
+  catch (const ndn::security::conf::Error& e) {
     std::cerr << "Fail to create the validator: " << e.what() << std::endl;
     return 1;
   }

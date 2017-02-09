@@ -70,7 +70,7 @@ main(int argc, char* argv[])
   }
 
   try {
-    ndn::KeyChain keyChain;
+    ndn::ndns::KeyChain keyChain;
     ndn::ndns::ManagementTool tool(db, keyChain);
     tool.listAllZones(std::cout);
   }
