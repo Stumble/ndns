@@ -99,7 +99,7 @@ main(int argc, char* argv[])
     Name label(rrLabelStr);
     name::Component type(rrTypeStr);
 
-    ndn::KeyChain keyChain;
+    ndn::ndns::KeyChain keyChain;
     ndn::ndns::ManagementTool tool(db, keyChain);
     tool.getRrSet(zoneName, label, type, std::cout);
   }

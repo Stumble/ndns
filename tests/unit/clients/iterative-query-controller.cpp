@@ -67,7 +67,7 @@ public:
   ndn::util::DummyClientFace producerFace;
   ndn::util::DummyClientFace consumerFace;
 
-  Validator validator;
+  ValidatorNdns validator;
   ndns::NameServer top;
   ndns::NameServer net;
   ndns::NameServer ndnsim;

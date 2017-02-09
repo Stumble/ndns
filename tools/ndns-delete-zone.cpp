@@ -78,7 +78,7 @@ main(int argc, char* argv[])
   try {
     Name zone(zoneStr);
 
-    ndn::KeyChain keyChain;
+    ndn::ndns::KeyChain keyChain;
     ndn::ndns::ManagementTool tool(db, keyChain);
     tool.deleteZone(zone);
   }

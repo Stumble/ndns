@@ -22,7 +22,10 @@
 #include "config.hpp"
 #include "daemon/config-file.hpp"
 #include "ndn-cxx/security/key-chain.hpp"
+#include "util/cert-helper.hpp"
+
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 
 namespace ndn {
 namespace ndns {
@@ -92,7 +95,7 @@ public:
       validatorConfigFile = item->second.get_value<std::string>();
     }
     NDNS_LOG_INFO("ValidatorConfigFile = " << validatorConfigFile);
-    m_validator = unique_ptr<Validator>(new Validator(m_validatorFace, validatorConfigFile));
+    m_validator = unique_ptr<ValidatorNdns>(new ValidatorNdns(m_validatorFace, validatorConfigFile));
 
     for (const auto& option : section) {
       Name name;
@@ -112,15 +115,9 @@ public:
           ;
         }
 
-
-        if (!m_keyChain.doesIdentityExist(name)) {
-          NDNS_LOG_FATAL("Identity: " << name << " does not exist in the KeyChain");
-          throw Error("Identity does not exist in the KeyChain");
-        }
-
         if (cert.empty()) {
           try {
-            cert = m_keyChain.getDefaultCertificateNameForIdentity(name);
+            cert = getDefaultCertificateNameForIdentity(m_keyChain, name);
           }
           catch (std::exception& e) {
             NDNS_LOG_FATAL("Identity: " << name << " does not have default certificate. "
@@ -129,8 +126,10 @@ public:
           }
         }
         else {
-          if (!m_keyChain.doesCertificateExist(cert)) {
-            throw Error("Certificate `" + cert.toUri() + "` does not exist in the KeyChain");
+          try {
+            getCertificate(m_keyChain, name, cert);
+          } catch (std::exception& e) {
+             throw Error("Certificate `" + cert.toUri() + "` does not exist in the KeyChain");
           }
         }
         NDNS_LOG_TRACE("name = " << name << " cert = " << cert);
@@ -143,7 +142,7 @@ public:
 private:
   Face& m_face;
   Face& m_validatorFace;
-  unique_ptr<Validator> m_validator;
+  unique_ptr<ValidatorNdns> m_validator;
   unique_ptr<DbMgr> m_dbMgr;
   std::vector<shared_ptr<NameServer>> m_servers;
   KeyChain m_keyChain;

@@ -26,10 +26,13 @@
 #include "logger.hpp"
 #include "daemon/db-mgr.hpp"
 #include "util/util.hpp"
+#include "util/cert-helper.hpp"
 
 #include <ndn-cxx/security/key-chain.hpp>
+#include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/util/io.hpp>
+#include <ndn-cxx/util/regex.hpp>
 #include <ndn-cxx/encoding/block.hpp>
 #include <ndn-cxx/encoding/block-helpers.hpp>
 #include <boost/noncopyable.hpp>
@@ -153,14 +156,14 @@ private:
   }
 
   void
-  onDataValidated(const shared_ptr<const Data>& data)
+  onDataValidated(const Data& data)
   {
     NDNS_LOG_INFO("data pass verification");
     this->stop();
   }
 
   void
-  onDataValidationFailed(const shared_ptr<const Data>& data, const std::string& str)
+  onDataValidationFailed(const Data& data, const ValidationError& str)
   {
     NDNS_LOG_INFO("data does not pass verification");
     m_hasError = true;
@@ -187,7 +190,7 @@ private:
   time::milliseconds m_interestLifetime;
 
   Face& m_face;
-  Validator m_validator;
+  ValidatorNdns m_validator;
   KeyChain m_keyChain;
 
   shared_ptr<Data> m_update;
@@ -287,9 +290,9 @@ main(int argc, char* argv[])
         // choosing the longest match of the identity who also have default certificate
         for (size_t i = name.size() + 1; i > 0; --i) { // i >=0 will present warnning
           Name tmp = name.getPrefix(i - 1);
-          if (keyChain.doesIdentityExist(tmp)) {
+          if (doesIdentityExist(keyChain, tmp)) {
             try {
-              certName = keyChain.getDefaultCertificateNameForIdentity(tmp);
+              certName = getDefaultCertificateNameForIdentity(keyChain, tmp);
               break;
             }
             catch (std::exception&) {
@@ -306,12 +309,6 @@ main(int argc, char* argv[])
           return 1;
         }
       }
-      else {
-        if (!keyChain.doesCertificateExist(certName)) {
-          std::cerr << "certificate: " << certName << " does not exist" << std::endl;
-          return 1;
-        }
-      }
 
       NdnsContentType contentType = toNdnsContentType(contentTypeStr);
 
@@ -323,7 +320,7 @@ main(int argc, char* argv[])
       Response re;
       re.setZone(zone);
       re.setRrLabel(rrLabel);
-      name::Component qType = (rrType == "ID-CERT" ?
+      name::Component qType = (rrType == "CERT" ?
                                ndns::label::NDNS_CERT_QUERY : ndns::label::NDNS_ITERATIVE_QUERY);
 
       re.setQueryType(qType);
@@ -337,7 +334,7 @@ main(int argc, char* argv[])
       }
 
       update = re.toData();
-      keyChain.sign(*update, certName);
+      keyChain.sign(*update, security::signingByCertificate(certName));
     }
     else {
       try {
@@ -352,7 +349,7 @@ main(int argc, char* argv[])
 
       try {
         // must check the Data is a legal Response with right name
-        shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<KEY>(<>+)<ID-CERT><>*");
+        shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<KEY>(<>+)<CERT><>*");
         shared_ptr<Regex> regex2 = make_shared<Regex>("(<>*)<NDNS>(<>+)");
 
         Name zone2;
@@ -417,7 +414,7 @@ main(int argc, char* argv[])
     else
       return 0;
   }
-  catch (const ndn::ValidatorConfig::Error& e) {
+  catch (const security::conf::Error& e) {
     std::cerr << "Fail to create the validator: " << e.what() << std::endl;
     return 1;
   }
