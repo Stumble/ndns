@@ -41,7 +41,6 @@ getCertificate(const KeyChain& keyChain,
   return getIdentity(keyChain, Identity).getDefaultKey().getCertificate(certName);
 }
 
-
 inline const Name&
 getDefaultKeyNameForIdentity(const KeyChain& keyChain, const Name& identityName)
 {

@@ -93,6 +93,7 @@ ManagementTool::createZone(const Name &zoneName,
   NDNS_LOG_INFO("Start generating KSK and DSK and their corresponding certificates");
   // generate KSK
 
+  Name identityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
   Name dskName;
   Key ksk;
   Key dsk;
@@ -108,7 +109,7 @@ ManagementTool::createZone(const Name &zoneName,
     addIdCert(zone, kskCert, cacheTtl);
   }
   else {
-    ksk = getIdentity(m_keyChain, zoneName).getDefaultKey();
+    ksk = zoneIdentity.getDefaultKey();
     kskCert = ksk.getCertificate(kskCertName);
   }
 
@@ -116,7 +117,7 @@ ManagementTool::createZone(const Name &zoneName,
     // if no dsk provided, then generate a dsk either signed by ksk auto generated or user provided
     dsk = m_keyChain.createKey(zoneIdentity);
     m_keyChain.deleteCertificate(dsk, dsk.getDefaultCertificate().getName());
-    dskCert = addCertificate(m_keyChain, dsk, ksk, "ID-CERT");
+    dskCert = addCertificate(m_keyChain, dsk, ksk, label::CERT_RR_TYPE.toUri());
     // dskCert will become the default certificate, since the default cert has been deleted.
     dskCert.setFreshnessPeriod(cacheTtl);
     NDNS_LOG_INFO("Generated DSK: " << dskCert.getName());
@@ -158,40 +159,36 @@ ManagementTool::deleteZone(const Name& zoneName)
 void
 ManagementTool::exportCertificate(const Name& certName, const std::string& outFile)
 {
-  //search for the certificate, start from KeyChain then local NDNS database
-  // shared_ptr<IdentityCertificate> cert;
-  // if (m_keyChain.doesCertificateExist(certName)) {
-  //   cert = m_keyChain.getCertificate(certName);
-  // }
-  // else {
-  // get certificate
-    // shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<KEY>(<>+)<ID-CERT><>");
-    // if (regex->match(certName) != true) {
-    //   throw Error("Certificate name is illegal");
-    // }
-    // Name zoneName = regex->expand("\\1");
-    // Name label = regex->expand("\\2");
+  // only search in local NDNS database
+  Certificate cert;
+  shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<KEY>(<>+)<ID-CERT><>");
+  if (!regex->match(certName)) {
+    throw Error("Certificate name is illegal");
+    return;
+  }
 
-    // Zone zone(zoneName);
-    // Rrset rrset(&zone);
-    // rrset.setLabel(label);
-    // rrset.setType(label::CERT_RR_TYPE);
-    // if (m_dbMgr.find(rrset)) {
-    //   Data data(rrset.getData());
-    //   cert = make_shared<IdentityCertificate>(data);
-    // }
-    // else {
-    //   throw Error("Cannot find the cert: " + certName.toUri());
-    // }
-  // }
+  Name zoneName = regex->expand("\\1");
+  Name identityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
+  Name label = regex->expand("\\2");
 
-  // if (outFile == DEFAULT_IO) {
-  //   ndn::io::save(*cert, std::cout);
-  // }
-  // else {
-  //   ndn::io::save(*cert, outFile);
-  //   NDNS_LOG_INFO("save cert to file: " << outFile);
-  // }
+  Zone zone(zoneName);
+  Rrset rrset(&zone);
+  rrset.setLabel(label);
+  rrset.setType(label::CERT_RR_TYPE);
+  if (m_dbMgr.find(rrset)) {
+    cert = Certificate(rrset.getData());
+  }
+  else {
+    throw Error("Cannot find the cert: " + certName.toUri());
+  }
+
+  if (outFile == DEFAULT_IO) {
+    ndn::io::save(cert, std::cout);
+  }
+  else {
+    ndn::io::save(cert, outFile);
+    NDNS_LOG_INFO("save cert to file: " << outFile);
+  }
 }
 
 void
@@ -539,6 +536,8 @@ ManagementTool::addIdCert(Zone& zone, const Certificate& cert,
   }
   NDNS_LOG_INFO("Add rrset with zone-id: " << zone.getId() << " label: " << label << " type: "
                 << label::CERT_RR_TYPE);
+
+  // should use add multiLevelrrset here
   m_dbMgr.insert(rrset);
 }
 
