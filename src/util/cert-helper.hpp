@@ -21,6 +21,8 @@
 #define NDNS_UTIL_CERT_HELPER_HPP
 
 #include "common.hpp"
+#include <ndn-cxx/encoding/tlv.hpp>
+#include <ndn-cxx/security/signing-helpers.hpp>
 
 namespace ndn {
 namespace ndns {
@@ -53,6 +55,36 @@ getDefaultCertificateNameForIdentity(const KeyChain& keyChain, const Name& ident
                                             .getDefaultCertificate()
                                             .getName();
 }
+
+inline Certificate
+addCertificate(KeyChain& keyChain,
+               const security::Key& key,
+               const security::Key& signingKey,
+               const std::string& issuer)
+{
+  Name certificateName = key.getName();
+  certificateName
+    .append(issuer)
+    .appendVersion();
+  Certificate certificate;
+  certificate.setName(certificateName);
+
+  // set metainfo
+  certificate.setContentType(ndn::tlv::ContentType_Key);
+  certificate.setFreshnessPeriod(time::hours(1));
+
+  // set content
+  certificate.setContent(key.getPublicKey().buf(), key.getPublicKey().size());
+
+  // set signature-info
+  SignatureInfo info;
+  info.setValidityPeriod(security::ValidityPeriod(time::system_clock::now(),
+                                                  time::system_clock::now() + time::days(10)));
+
+  keyChain.sign(certificate, signingByKey(signingKey).setSignatureInfo(info));
+  return certificate;
+}
+
 
 } // namespace ndns
 } // namespace ndn

@@ -39,6 +39,7 @@ namespace ndns {
 
 using ndn::security::v2::KeyChain;
 using ndn::security::Identity;
+using ndn::security::pib::Key;
 using ndn::security::v2::Certificate;
 
 }
