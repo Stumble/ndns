@@ -23,7 +23,8 @@
 #include "mgmt/management-tool.hpp"
 
 #include <boost/lexical_cast.hpp>
-#include <ndn-cxx/security/validator.hpp>
+#include <ndn-cxx/security/verification-helpers.hpp>
+// #include <ndn-cxx/security/validator.hpp>
 
 namespace ndn {
 namespace ndns {
@@ -46,9 +47,10 @@ public:
     zone1.setTtl(time::seconds(4600));
     BOOST_CHECK_NO_THROW(m_session.insert(zone1));
 
-    this->addIdentity(TEST_IDENTITY_NAME);
-    m_certName = m_keyChain.getDefaultCertificateNameForIdentity(TEST_IDENTITY_NAME);
-    ndn::io::save(*(m_keyChain.getCertificate(m_certName)), TEST_CERT.string());
+    m_identity = this->addIdentity(TEST_IDENTITY_NAME);
+    m_cert = m_identity.getDefaultKey().getDefaultCertificate();
+    m_certName = m_cert.getName();
+    saveIdentityCertificate(m_identity, TEST_CERT.string());
 
     NDNS_LOG_INFO("save test root cert " << m_certName << " to: " << TEST_CERT.string());
     BOOST_CHECK_GT(m_certName.size(), 0);
@@ -70,6 +72,8 @@ public:
   ndns::DbMgr m_session;
   Name m_zoneName;
   Name m_certName;
+  Identity m_identity;
+  Certificate m_cert;
 };
 
 BOOST_FIXTURE_TEST_SUITE(RrsetFactoryTest,  RrsetFactoryFixture)
@@ -128,8 +132,8 @@ BOOST_AUTO_TEST_CASE(GenerateNsRrset)
   BOOST_CHECK_EQUAL(link.getContentType(), NDNS_LINK);
   BOOST_CHECK(link.getDelegations() == delegations);
 
-  shared_ptr<IdentityCertificate> cert = m_keyChain.getCertificate(m_certName);
-  BOOST_CHECK_EQUAL(Validator::verifySignature(link, cert->getPublicKeyInfo()), true);
+  // BOOST_CHECK_EQUAL(Validator::verifySignature(link, m_cert.getPublicKeyInfo()), true);
+  security::verifySignature(link, m_cert);
 }
 
 BOOST_AUTO_TEST_CASE(GenerateTxtRrset)
@@ -177,8 +181,9 @@ BOOST_AUTO_TEST_CASE(GenerateTxtRrset)
 
   BOOST_CHECK(txts == RrsetFactory::wireDecodeTxt(data.getContent()));
 
-  shared_ptr<IdentityCertificate> cert = m_keyChain.getCertificate(m_certName);
-  BOOST_CHECK(Validator::verifySignature(data, cert->getPublicKeyInfo()));
+  // shared_ptr<IdentityCertificate> cert = m_keyChain.getCertificate(m_certName);
+  // BOOST_CHECK(Validator::verifySignature(data, cert->getPublicKeyInfo()));
+  security::verifySignature(data, m_cert);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

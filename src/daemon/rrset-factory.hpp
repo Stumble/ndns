@@ -84,7 +84,7 @@ public:
                     const name::Component& type,
                     const uint64_t version,
                     time::seconds ttl,
-                    const IdentityCertificate& cert);
+                    const Certificate& cert);
 
   static std::vector<std::string>
   wireDecodeTxt(const Block& wire);

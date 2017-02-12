@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE(UpdateReplaceRr)
   re.addRr(makeBinaryBlock(ndns::tlv::RrData, str.c_str(), str.size()));
 
   shared_ptr<Data> data = re.toData();
-  m_keyChain.sign(*data, m_certName);
+  m_keyChain.sign(*data, security::signingByCertificate(m_cert));
 
   Query q(Name(zone), ndns::label::NDNS_ITERATIVE_QUERY);
   const Block& block = data->wireEncode();
@@ -190,7 +190,8 @@ BOOST_AUTO_TEST_CASE(UpdateReplaceRr)
     BOOST_CHECK_NO_THROW(resp.fromData(zone, data));
     BOOST_CHECK_EQUAL(resp.getContentType(), NDNS_RESP); // by default NDNS_BLOB is enough
     BOOST_CHECK_GT(resp.getRrs().size(), 0);
-    Block block = resp.getRrs()[0];
+    Block block = resp.getRrs()[0]
+;
     block.parse();
     int ret = -1;
     BOOST_CHECK_EQUAL(block.type(), ndns::tlv::RrData);
@@ -221,7 +222,7 @@ BOOST_AUTO_TEST_CASE(UpdateInsertNewRr)
   re.addRr(makeBinaryBlock(ndns::tlv::RrData, str.c_str(), str.size()));
 
   shared_ptr<Data> data = re.toData();
-  m_keyChain.sign(*data, m_certName);
+  m_keyChain.sign(*data, security::signingByCertificate(m_cert));
 
   Query q(Name(zone), ndns::label::NDNS_ITERATIVE_QUERY);
   const Block& block = data->wireEncode();
@@ -260,16 +261,31 @@ BOOST_AUTO_TEST_CASE(UpdateInsertNewRr)
 
 BOOST_AUTO_TEST_CASE(UpdateValidatorCannotFetchCert)
 {
-  Name dskName = m_keyChain.generateRsaKeyPair(TEST_IDENTITY_NAME, false);
-  std::vector<CertificateSubjectDescription> desc;
-  time::system_clock::TimePoint notBefore = time::system_clock::now();
-  time::system_clock::TimePoint notAfter = notBefore + time::days(365);
-  shared_ptr<IdentityCertificate> dskCert =
-    m_keyChain.prepareUnsignedIdentityCertificate(dskName, m_certName,
-                                                  notBefore, notAfter, desc);
+  Identity zoneIdentity = m_keyChain.createIdentity(TEST_IDENTITY_NAME);
+  Key dsk = m_keyChain.createKey(zoneIdentity);
 
-  m_keyChain.sign(*dskCert, m_certName);
-  m_keyChain.addCertificateAsKeyDefault(*dskCert);
+  Name dskCertName = dsk.getName();
+  dskCertName
+    .append("ID-CERT")
+    .appendVersion();
+  Certificate dskCert;
+  dskCert.setName(dskCertName);
+
+  // set metainfo
+  dskCert.setContentType(ndn::tlv::ContentType_Key);
+  dskCert.setFreshnessPeriod(time::hours(1));
+
+  // set content
+  dskCert.setContent(dsk.getPublicKey().buf(), dsk.getPublicKey().size());
+
+  // set signature-info
+  SignatureInfo info;
+  info.setValidityPeriod(security::ValidityPeriod(time::system_clock::now(),
+                                                  time::system_clock::now() + time::days(365)));
+
+  m_keyChain.sign(dskCert, security::signingByCertificate(m_cert));
+  m_keyChain.setDefaultCertificate(dsk, dskCert);
+
   NDNS_LOG_TRACE("KeyChain: add cert: " << dskCert->getName() << ". KeyLocator: "
                  << dskCert->getSignature().getKeyLocator().getName());
 
@@ -297,7 +313,7 @@ BOOST_AUTO_TEST_CASE(UpdateValidatorCannotFetchCert)
   re.addRr(makeBinaryBlock(ndns::tlv::RrData, str.c_str(), str.size()));
 
   shared_ptr<Data> data = re.toData();
-  m_keyChain.sign(*data, dskCert->getName());
+  m_keyChain.sign(*data, security::signingByCertificate(dskCert));
 
   Query q(Name(zone), ndns::label::NDNS_ITERATIVE_QUERY);
   const Block& block = data->wireEncode();

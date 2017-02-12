@@ -189,7 +189,7 @@ RrsetFactory::generateCertRrset(const Name& label,
                                 const name::Component& type,
                                 const uint64_t version,
                                 time::seconds ttl,
-                                const IdentityCertificate& cert)
+                                const Certificate& cert)
 {
   if (!m_checked) {
     BOOST_THROW_EXCEPTION(Error("You have to call checkZoneKey before call generate functions"));

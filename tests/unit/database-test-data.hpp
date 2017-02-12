@@ -64,6 +64,8 @@ public:
   Zone m_net;
   Zone m_ndnsim;
   DbMgr m_session;
+  Identity m_identity;
+  Certificate m_cert;
 };
 
 } // namespace tests

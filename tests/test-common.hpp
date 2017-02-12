@@ -35,7 +35,7 @@
 #include <ndn-cxx/link.hpp>
 #include <ndn-cxx/lp/nack.hpp>
 #include <ndn-cxx/util/dummy-client-face.hpp>
-#include <ndn-cxx/security/key-chain.hpp>
+#include <ndn-cxx/security/signing-helpers.hpp>
 
 #include <boost/version.hpp>
 #include <boost/asio.hpp>
@@ -50,6 +50,11 @@
 namespace ndn {
 namespace ndns {
 namespace tests {
+
+using ndn::security::v2::KeyChain;
+using ndn::security::Identity;
+using ndn::security::pib::Key;
+using ndn::security::v2::Certificate;
 
 /** \brief create an Interest
  *  \param name Interest name

@@ -19,6 +19,7 @@
 
 #include "database-test-data.hpp"
 #include "daemon/rrset-factory.hpp"
+#include <ndn-cxx/security/verification-helpers.hpp>
 
 namespace ndn {
 namespace ndns {
@@ -44,10 +45,15 @@ DbTestData::DbTestData()
 
   ndns::Validator::VALIDATOR_CONF_FILE = TEST_CONFIG_PATH "/" "validator.conf";
 
-  m_keyChain.deleteIdentity(TEST_IDENTITY_NAME);
-  m_certName = m_keyChain.createIdentity(TEST_IDENTITY_NAME);
+  // m_keyChain.deleteIdentity(TEST_IDENTITY_NAME);
+  // m_certName = m_keyChain.createIdentity(TEST_IDENTITY_NAME);
 
-  ndn::io::save(*(m_keyChain.getCertificate(m_certName)), TEST_CERT.string());
+  // ndn::io::save(*(m_keyChain.getCertificate(m_certName)), TEST_CERT.string());
+  m_identity = this->addIdentity(TEST_IDENTITY_NAME);
+  m_cert = m_identity.getDefaultKey().getDefaultCertificate();
+  m_certName = m_cert.getName();
+  saveIdentityCertificate(m_identity, TEST_CERT.string());
+
   NDNS_LOG_INFO("save test root cert " << m_certName << " to: " << TEST_CERT.string());
 
   BOOST_CHECK_GT(m_certName.size(), 0);
@@ -135,13 +141,12 @@ DbTestData::addRrset(Zone& zone, const Name& label, const name::Component& type,
                            std::vector<std::string>());
   } else if (type == label::CERT_RR_TYPE) {
     rrset = rf.generateCertRrset(label, type, version.toVersion(), ttl,
-                                 *m_keyChain.getCertificate(m_certName));
+                                 m_cert);
   }
 
   shared_ptr<Data> data = make_shared<Data>(rrset.getData());
 
-  shared_ptr<IdentityCertificate> cert = m_keyChain.getCertificate(m_certName);
-  BOOST_CHECK_EQUAL(Validator::verifySignature(*data, cert->getPublicKeyInfo()), true);
+  security::verifySignature(*data, m_cert);
 
   m_session.insert(rrset);
   m_rrsets.push_back(rrset);
