@@ -270,15 +270,9 @@ BOOST_AUTO_TEST_CASE(UpdateValidatorCannotFetchCert)
     .appendVersion();
   Certificate dskCert;
   dskCert.setName(dskCertName);
-
-  // set metainfo
   dskCert.setContentType(ndn::tlv::ContentType_Key);
   dskCert.setFreshnessPeriod(time::hours(1));
-
-  // set content
   dskCert.setContent(dsk.getPublicKey().buf(), dsk.getPublicKey().size());
-
-  // set signature-info
   SignatureInfo info;
   info.setValidityPeriod(security::ValidityPeriod(time::system_clock::now(),
                                                   time::system_clock::now() + time::days(365)));
@@ -286,19 +280,19 @@ BOOST_AUTO_TEST_CASE(UpdateValidatorCannotFetchCert)
   m_keyChain.sign(dskCert, security::signingByCertificate(m_cert));
   m_keyChain.setDefaultCertificate(dsk, dskCert);
 
-  NDNS_LOG_TRACE("KeyChain: add cert: " << dskCert->getName() << ". KeyLocator: "
-                 << dskCert->getSignature().getKeyLocator().getName());
+  NDNS_LOG_TRACE("KeyChain: add cert: " << dskCert.getName() << ". KeyLocator: "
+                 << dskCert.getSignature().getKeyLocator().getName());
 
   Rrset rrset(&m_root);
-  Name label = dskCert->getName().getPrefix(-2).getSubName(m_root.getName().size() + 1);
+  Name label = dskCert.getName().getPrefix(-2).getSubName(m_root.getName().size() + 1);
   rrset.setLabel(label);
   rrset.setType(label::CERT_RR_TYPE);
-  rrset.setVersion(dskCert->getName().get(-1));
+  rrset.setVersion(dskCert.getName().get(-1));
   rrset.setTtl(m_root.getTtl());
-  rrset.setData(dskCert->wireEncode());
+  rrset.setData(dskCert.wireEncode());
   m_session.insert(rrset);
   NDNS_LOG_TRACE("DB: zone " << m_root << " add a ID-CERT RR with name="
-                 << dskCert->getName() << " rrLabel=" << label);
+                 << dskCert.getName() << " rrLabel=" << label);
 
   Response re;
   re.setZone(zone);
@@ -378,29 +372,38 @@ public:
 
 BOOST_FIXTURE_TEST_CASE(UpdateValidatorFetchCert, NameServerFixture2)
 {
-  Name dskName = m_keyChain.generateRsaKeyPair(TEST_IDENTITY_NAME, false);
-  std::vector<CertificateSubjectDescription> desc;
-  time::system_clock::TimePoint notBefore = time::system_clock::now();
-  time::system_clock::TimePoint notAfter = notBefore + time::days(365);
-  shared_ptr<IdentityCertificate> dskCert =
-    m_keyChain.prepareUnsignedIdentityCertificate(dskName, m_certName,
-                                                  notBefore, notAfter, desc);
+  Identity zoneIdentity = m_keyChain.createIdentity(TEST_IDENTITY_NAME);
+  Key dsk = m_keyChain.createKey(zoneIdentity);
 
-  m_keyChain.sign(*dskCert, m_certName);
-  m_keyChain.addCertificateAsKeyDefault(*dskCert);
-  NDNS_LOG_TRACE("KeyChain: add cert: " << dskCert->getName() << ". KeyLocator: "
-                 << dskCert->getSignature().getKeyLocator().getName());
+  Name dskCertName = dsk.getName();
+  dskCertName
+    .append("ID-CERT")
+    .appendVersion();
+  Certificate dskCert;
+  dskCert.setName(dskCertName);
+  dskCert.setContentType(ndn::tlv::ContentType_Key);
+  dskCert.setFreshnessPeriod(time::hours(1));
+  dskCert.setContent(dsk.getPublicKey().buf(), dsk.getPublicKey().size());
+  SignatureInfo info;
+  info.setValidityPeriod(security::ValidityPeriod(time::system_clock::now(),
+                                                  time::system_clock::now() + time::days(365)));
+
+  m_keyChain.sign(dskCert, security::signingByCertificate(m_cert));
+  m_keyChain.setDefaultCertificate(dsk, dskCert);
+
+  NDNS_LOG_TRACE("KeyChain: add cert: " << dskCert.getName() << ". KeyLocator: "
+                 << dskCert.getSignature().getKeyLocator().getName());
 
   Rrset rrset(&m_root);
-  Name label = dskCert->getName().getPrefix(-2).getSubName(m_root.getName().size() + 1);
+  Name label = dskCert.getName().getPrefix(-2).getSubName(m_root.getName().size() + 1);
   rrset.setLabel(label);
   rrset.setType(label::CERT_RR_TYPE);
-  rrset.setVersion(dskCert->getName().get(-1));
+  rrset.setVersion(dskCert.getName().get(-1));
   rrset.setTtl(m_root.getTtl());
-  rrset.setData(dskCert->wireEncode());
+  rrset.setData(dskCert.wireEncode());
   m_session.insert(rrset);
   NDNS_LOG_TRACE("DB: zone " << m_root << " add a ID-CERT RR with name="
-                 << dskCert->getName() << " rrLabel=" << label);
+                 << dskCert.getName() << " rrLabel=" << label);
 
   Response re;
   re.setZone(zone);
@@ -415,7 +418,7 @@ BOOST_FIXTURE_TEST_CASE(UpdateValidatorFetchCert, NameServerFixture2)
   re.addRr(makeBinaryBlock(ndns::tlv::RrData, str.c_str(), str.size()));
 
   shared_ptr<Data> data = re.toData();
-  m_keyChain.sign(*data, dskCert->getName());
+  m_keyChain.sign(*data, security::signingByCertificate(dskCert));
 
   Query q(Name(zone), ndns::label::NDNS_ITERATIVE_QUERY);
   const Block& block = data->wireEncode();

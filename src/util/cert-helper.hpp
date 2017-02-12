@@ -33,6 +33,17 @@ getIdentity(const KeyChain& keyChain, const Name& identityName)
   return keyChain.getPib().getIdentity(identityName);
 }
 
+inline bool
+doesIdentityExist(const KeyChain& keyChain, const Name& identityName)
+{
+  try {
+    keyChain.getPib().getIdentity(identityName);
+    return true;
+  } catch (std::exception&) {
+    return false;
+  }
+}
+
 inline Certificate
 getCertificate(const KeyChain& keyChain,
                const Name& Identity,

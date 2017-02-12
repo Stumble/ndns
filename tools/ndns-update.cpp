@@ -26,8 +26,10 @@
 #include "logger.hpp"
 #include "daemon/db-mgr.hpp"
 #include "util/util.hpp"
+#include "util/cert-helper.hpp"
 
 #include <ndn-cxx/security/key-chain.hpp>
+#include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/util/io.hpp>
 #include <ndn-cxx/encoding/block.hpp>
@@ -287,9 +289,9 @@ main(int argc, char* argv[])
         // choosing the longest match of the identity who also have default certificate
         for (size_t i = name.size() + 1; i > 0; --i) { // i >=0 will present warnning
           Name tmp = name.getPrefix(i - 1);
-          if (keyChain.doesIdentityExist(tmp)) {
+          if (doesIdentityExist(keyChain, tmp)) {
             try {
-              certName = keyChain.getDefaultCertificateNameForIdentity(tmp);
+              certName = getDefaultCertificateNameForIdentity(keyChain, tmp);
               break;
             }
             catch (std::exception&) {
@@ -303,12 +305,6 @@ main(int argc, char* argv[])
         if (certName.empty()) {
           std::cerr << "cannot figure out the certificate automatically. "
                     << "please set it with -c CERT_NAEME" << std::endl;
-          return 1;
-        }
-      }
-      else {
-        if (!keyChain.doesCertificateExist(certName)) {
-          std::cerr << "certificate: " << certName << " does not exist" << std::endl;
           return 1;
         }
       }
@@ -337,7 +333,7 @@ main(int argc, char* argv[])
       }
 
       update = re.toData();
-      keyChain.sign(*update, certName);
+      keyChain.sign(*update, security::signingByCertificate(certName));
     }
     else {
       try {
