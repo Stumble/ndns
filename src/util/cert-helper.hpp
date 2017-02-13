@@ -46,11 +46,22 @@ doesIdentityExist(const KeyChain& keyChain, const Name& identityName)
 
 inline Certificate
 getCertificate(const KeyChain& keyChain,
-               const Name& Identity,
+               const Name& identity,
                const Name& certName)
 {
-  return getIdentity(keyChain, Identity).getDefaultKey().getCertificate(certName);
+  Identity id = keyChain.getPib().getIdentity(identity);
+  for (const auto& key : id.getKeys()) {
+    for (const auto& cert : key.getCertificates()) {
+      if (cert.getName() == cert.getName()) {
+        return cert;
+      }
+    }
+  }
+
+  throw std::runtime_error(certName.toUri() + " does not exist");
+  return Certificate();
 }
+
 
 inline const Name&
 getDefaultKeyNameForIdentity(const KeyChain& keyChain, const Name& identityName)
@@ -67,10 +78,10 @@ getDefaultCertificateNameForIdentity(const KeyChain& keyChain, const Name& ident
 }
 
 inline Certificate
-addCertificate(KeyChain& keyChain,
-               const security::Key& key,
-               const security::Key& signingKey,
-               const std::string& issuer)
+createCertificate(KeyChain& keyChain,
+                  const security::Key& key,
+                  const security::Key& signingKey,
+                  const std::string& issuer)
 {
   Name certificateName = key.getName();
   certificateName

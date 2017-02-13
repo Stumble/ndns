@@ -58,6 +58,7 @@ ManagementTool::createZone(const Name &zoneName,
                            const Name& dskCertName)
 {
   bool isRoot = zoneName == ROOT_ZONE;
+  Name zoneIdentityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
 
   //check preconditions
   Zone zone(zoneName, cacheTtl);
@@ -75,12 +76,12 @@ ManagementTool::createZone(const Name &zoneName,
 
   // if dsk is provided, there is no need to check ksk
   if (dskCertName != DEFAULT_CERT) {
-    if (!matchCertificate(dskCertName, zoneName)) {
+    if (!matchCertificate(dskCertName, zoneIdentityName)) {
       throw Error("Cannot verify DSK certificate");
     }
   }
   else if (kskCertName != DEFAULT_CERT) {
-    if (!matchCertificate(kskCertName, zoneName)) {
+    if (!matchCertificate(kskCertName, zoneIdentityName)) {
       throw Error("Cannot verify KSK certificate");
     }
   }
@@ -93,13 +94,15 @@ ManagementTool::createZone(const Name &zoneName,
   NDNS_LOG_INFO("Start generating KSK and DSK and their corresponding certificates");
   // generate KSK
 
-  Name identityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
   Name dskName;
   Key ksk;
   Key dsk;
   Certificate dskCert;
   Certificate kskCert;
-  Identity zoneIdentity = m_keyChain.createIdentity(zoneName);
+  Identity zoneIdentity = m_keyChain.createIdentity(zoneIdentityName);
+  // this assume that keyChain is consistent with NDNS database
+  // i.e. if zone does not exitst in NDNS database
+  //      then identity with 'zoneName/NDNS'does not exist in keyChain
 
   if (kskCertName == DEFAULT_CERT) {
     ksk = zoneIdentity.getDefaultKey();
@@ -109,22 +112,24 @@ ManagementTool::createZone(const Name &zoneName,
     addIdCert(zone, kskCert, cacheTtl);
   }
   else {
-    ksk = zoneIdentity.getDefaultKey();
-    kskCert = ksk.getCertificate(kskCertName);
+    // ksk usually might not be the default key of a zone
+    kskCert = getCertificate(m_keyChain, zoneIdentityName, kskCertName);
+    ksk = zoneIdentity.getKey(kskCert.getKeyName());
   }
 
   if (dskCertName == DEFAULT_CERT) {
     // if no dsk provided, then generate a dsk either signed by ksk auto generated or user provided
     dsk = m_keyChain.createKey(zoneIdentity);
     m_keyChain.deleteCertificate(dsk, dsk.getDefaultCertificate().getName());
-    dskCert = addCertificate(m_keyChain, dsk, ksk, label::CERT_RR_TYPE.toUri());
+    dskCert = createCertificate(m_keyChain, dsk, ksk, label::CERT_RR_TYPE.toUri());
     // dskCert will become the default certificate, since the default cert has been deleted.
     dskCert.setFreshnessPeriod(cacheTtl);
     NDNS_LOG_INFO("Generated DSK: " << dskCert.getName());
   }
   else {
-    dsk = zoneIdentity.getDefaultKey();
-    dskCert = dsk.getCertificate(dskCertName);
+    dskCert = getCertificate(m_keyChain, zoneIdentityName, dskCertName);
+    dsk = zoneIdentity.getKey(dskCert.getKeyName());
+    m_keyChain.setDefaultKey(zoneIdentity, dsk);
     m_keyChain.setDefaultCertificate(dsk, dskCert);
   }
 
@@ -565,12 +570,15 @@ ManagementTool::removeZone(Zone& zone)
 bool
 ManagementTool::matchCertificate(const Name& certName, const Name& identity)
 {
-  try {
-    getCertificate(m_keyChain, identity, certName);
-    return true;
-  } catch (ndn::security::Pib::Error) {
-    return false;
+  Identity id = m_keyChain.getPib().getIdentity(identity);
+  for (const Key& key: id.getKeys()) {
+    try {
+      key.getCertificate(certName);
+      return true;
+    } catch(std::exception&) {
+    }
   }
+  return false;
 }
 
 void

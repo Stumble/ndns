@@ -120,13 +120,19 @@ public:
     : m_tool(TEST_DATABASE.string().c_str(), m_keyChain)
     , m_dbMgr(TEST_DATABASE.string().c_str())
 
-    , rootKsk("/KEY/ksk-1416974006376/ID-CERT/%FD%00%00%01I%EA%3Bx%BD")
-    , rootDsk("/KEY/dsk-1416974006466/ID-CERT/%FD%00%00%01I%EA%3By%28")
-
     , otherKsk("/ndns-test/KEY/ksk-1416974006577/ID-CERT/%FD%00%00%01I%EA%3By%7F")
     , otherDsk("/ndns-test/KEY/dsk-1416974006659/ID-CERT/%FD%00%00%01I%EA%3Bz%0E")
   {
     boost::filesystem::create_directory(TEST_CERTDIR);
+    Identity root = addIdentity("NDNS");
+    Key ksk = root.getDefaultKey();
+    Key dsk = m_keyChain.createKey(root);
+
+    rootKsk = root.getDefaultKey().getDefaultCertificate().getName();
+    rootDsk = dsk.getDefaultCertificate().getName();
+
+    Certificate dskCert = createCertificate(m_keyChain, dsk, ksk, "ID-CERT");
+    m_keyChain.addCertificate(dsk, dskCert);
   }
 
   ~ManagementToolFixture()
@@ -168,11 +174,11 @@ public:
     return fullName.getSubName(zoneNameSize + 1, fullName.size() - zoneNameSize - 3);
   }
 
-  IdentityCertificate
+  Certificate
   findIdCert(Zone& zone, const Name& fullName)
   {
     Rrset rrset = findRrSet(zone, getLabel(zone, fullName), label::CERT_RR_TYPE);
-    IdentityCertificate cert;
+    Certificate cert;
     cert.wireDecode(rrset.getData());
     return cert;
   }
@@ -307,11 +313,13 @@ BOOST_AUTO_TEST_CASE(CreateZoneWithFixture)
   BOOST_CHECK_EQUAL(rrset.getTtl(), time::seconds(4200));
 
   // Check certificate freshnessPeriod and validity
-  IdentityCertificate cert;
-  BOOST_REQUIRE_NO_THROW(cert = findIdCert(zone, dsk));
-  BOOST_CHECK_EQUAL(cert.getMetaInfo().getFreshnessPeriod(), time::seconds(4200));
-  BOOST_CHECK_EQUAL(cert.getNotAfter() - cert.getNotBefore(), time::days(30));
+  Certificate cert;
+  time::system_clock::TimePoint beg,end;
+  std::tie(beg, end) = cert.getValidityPeriod().getPeriod();
 
+  BOOST_REQUIRE_NO_THROW(cert = findIdCert(zone, dsk));
+  BOOST_CHECK_EQUAL(cert.getFreshnessPeriod(), time::seconds(4200));
+  BOOST_CHECK_EQUAL(end - beg, time::days(30));
   m_tool.deleteZone(zoneName);
 }
 

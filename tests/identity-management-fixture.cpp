@@ -29,7 +29,6 @@ namespace ndn {
 namespace ndns {
 namespace tests {
 
-namespace v1 = security::v1;
 namespace v2 = security::v2;
 
 IdentityManagementBaseFixture::~IdentityManagementBaseFixture()

@@ -50,8 +50,9 @@ void
 RrsetFactory::checkZoneKey()
 {
   onlyCheckZone();
+  Name zoneIdentityName = Name(m_zone.getName()).append(label::NDNS_CERT_QUERY);
   if (m_dskCertName != DEFAULT_CERT &&
-      !matchCertificate(m_dskCertName, m_zone.getName())) {
+      !matchCertificate(m_dskCertName, zoneIdentityName)) {
     BOOST_THROW_EXCEPTION(Error("Cannot verify certificate"));
   }
 }

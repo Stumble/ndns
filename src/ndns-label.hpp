@@ -47,7 +47,7 @@ const name::Component NDNS_ITERATIVE_QUERY("NDNS");
 /**
  * @brief NDNS ID-CERT query type
  */
-const name::Component NDNS_CERT_QUERY("KEY");
+const name::Component NDNS_CERT_QUERY("NDNS");
 
 /////////////////////////////////////////////
 
