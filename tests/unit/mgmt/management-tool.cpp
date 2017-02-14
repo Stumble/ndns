@@ -119,20 +119,29 @@ public:
   ManagementToolFixture()
     : m_tool(TEST_DATABASE.string().c_str(), m_keyChain)
     , m_dbMgr(TEST_DATABASE.string().c_str())
-
-    , otherKsk("/ndns-test/KEY/ksk-1416974006577/ID-CERT/%FD%00%00%01I%EA%3By%7F")
-    , otherDsk("/ndns-test/KEY/dsk-1416974006659/ID-CERT/%FD%00%00%01I%EA%3Bz%0E")
   {
     boost::filesystem::create_directory(TEST_CERTDIR);
     Identity root = addIdentity("NDNS");
     Key ksk = root.getDefaultKey();
+    rootKsk = ksk.getDefaultCertificate().getName();
+
     Key dsk = m_keyChain.createKey(root);
-
-    rootKsk = root.getDefaultKey().getDefaultCertificate().getName();
-    rootDsk = dsk.getDefaultCertificate().getName();
-
+    // replace rootDsk's default cert with ksk-signing cert
+    m_keyChain.deleteCertificate(dsk, dsk.getDefaultCertificate().getName());
     Certificate dskCert = createCertificate(m_keyChain, dsk, ksk, "ID-CERT");
     m_keyChain.addCertificate(dsk, dskCert);
+    rootDsk = dskCert.getName();
+
+    Identity other = addIdentity("/ndns-test/NDNS");
+    Key otherKskKey = other.getDefaultKey();
+    otherKsk = otherKskKey.getDefaultCertificate().getName();
+
+    // replace rootDsk's default cert with ksk-signing cert
+    Key otherDskKey = m_keyChain.createKey(other);
+    m_keyChain.deleteCertificate(otherDskKey, otherDskKey.getDefaultCertificate().getName());
+    Certificate otherDskCert = createCertificate(m_keyChain, otherDskKey, otherKskKey, "ID-CERT");
+    m_keyChain.addCertificate(otherDskKey, otherDskCert);
+    otherDsk = otherDskCert.getName();
   }
 
   ~ManagementToolFixture()
@@ -263,13 +272,15 @@ BOOST_AUTO_TEST_CASE(CreateDeleteChildFixture)
   Name parentZoneName("/ndns-test");
   Name zoneName = Name(parentZoneName).append("child-zone");
 
-  BOOST_CHECK_EQUAL(doesIdentityExist(m_keyChain, zoneName), false);
+  Zone zone1(zoneName);
+  Name zoneIdentityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
+  BOOST_REQUIRE_EQUAL(m_dbMgr.find(zone1), false);
 
   // will generate keys automatically
   m_tool.createZone(zoneName, parentZoneName);
-  BOOST_CHECK_EQUAL(doesIdentityExist(m_keyChain, zoneName), true);
+  BOOST_CHECK_EQUAL(doesIdentityExist(m_keyChain, zoneIdentityName), true);
 
-  std::vector<Name>&& certs = getCerts(zoneName);
+  std::vector<Name>&& certs = getCerts(zoneIdentityName);
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
   std::sort(certs.begin(), certs.end());
 

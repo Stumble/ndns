@@ -109,7 +109,6 @@ ManagementTool::createZone(const Name &zoneName,
     kskCert = ksk.getDefaultCertificate();
     kskCert.setFreshnessPeriod(cacheTtl);
     NDNS_LOG_INFO("Generated KSK: " << kskCert.getName());
-    addIdCert(zone, kskCert, cacheTtl);
   }
   else {
     // ksk usually might not be the default key of a zone
@@ -122,8 +121,9 @@ ManagementTool::createZone(const Name &zoneName,
     dsk = m_keyChain.createKey(zoneIdentity);
     m_keyChain.deleteCertificate(dsk, dsk.getDefaultCertificate().getName());
     dskCert = createCertificate(m_keyChain, dsk, ksk, label::CERT_RR_TYPE.toUri());
-    // dskCert will become the default certificate, since the default cert has been deleted.
     dskCert.setFreshnessPeriod(cacheTtl);
+    // dskCert will become the default certificate, since the default cert has been deleted.
+    m_keyChain.addCertificate(dsk, dskCert);
     NDNS_LOG_INFO("Generated DSK: " << dskCert.getName());
   }
   else {
@@ -139,6 +139,7 @@ ManagementTool::createZone(const Name &zoneName,
 
   //third create ID-cert
   NDNS_LOG_INFO("Start creating DSK's ID-CERT");
+  addIdCert(zone, kskCert, cacheTtl);
   addIdCert(zone, dskCert, cacheTtl);
 }
 
