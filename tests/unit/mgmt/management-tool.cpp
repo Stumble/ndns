@@ -302,14 +302,16 @@ BOOST_AUTO_TEST_CASE(CreateZoneWithFixture)
 {
   Name parentZoneName("/ndns-test");
   Name zoneName = Name(parentZoneName).append("child-zone");
+  Name zoneIdentityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
 
   m_tool.createZone(zoneName, parentZoneName, time::seconds(4200), time::days(30));
-  BOOST_CHECK_EQUAL(doesIdentityExist(m_keyChain, zoneName), true);
+  BOOST_CHECK_EQUAL(doesIdentityExist(m_keyChain, zoneIdentityName), true);
 
-  std::vector<Name>&& certs = getCerts(zoneName);
+  std::vector<Name>&& certs = getCerts(zoneIdentityName);
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
   std::sort(certs.begin(), certs.end());
 
+  // question: is the strong enough to make sure [1] is the dsk?
   // Name& ksk = certs[0];
   Name& dsk = certs[1];
 
@@ -324,7 +326,7 @@ BOOST_AUTO_TEST_CASE(CreateZoneWithFixture)
   BOOST_CHECK_EQUAL(rrset.getTtl(), time::seconds(4200));
 
   // Check certificate freshnessPeriod and validity
-  Certificate cert;
+  Certificate cert = getCertificate(m_keyChain, zoneIdentityName, dsk);
   time::system_clock::TimePoint beg,end;
   std::tie(beg, end) = cert.getValidityPeriod().getPeriod();
 
@@ -339,7 +341,7 @@ BOOST_AUTO_TEST_CASE(ZoneCreatePreconditions)
   BOOST_CHECK_NO_THROW(m_tool.createZone("/net/ndnsim", "/net"));
   BOOST_CHECK_THROW(m_tool.createZone("/net/ndnsim", "/net"), ndns::ManagementTool::Error);
 
-  std::vector<Name>&& certs = getCerts("/net/ndnsim");
+  std::vector<Name>&& certs = getCerts("/net/ndnsim/NDNS");
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
   std::sort(certs.begin(), certs.end());
 
@@ -355,18 +357,18 @@ BOOST_AUTO_TEST_CASE(ZoneCreatePreconditions)
 
   BOOST_CHECK_NO_THROW(m_tool.createZone("/net/ndnsim", "/",
                                          time::seconds(1), time::days(1), ksk, dsk));
-  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim").size(), 2);
+  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim/NDNS").size(), 2);
   m_tool.deleteZone("/net/ndnsim");
 
   // no ksk and dsk will be generated
   BOOST_CHECK_NO_THROW(m_tool.createZone("/net/ndnsim", "/",
                                          time::seconds(1), time::days(1), Name(), dsk));
-  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim").size(), 2);
+  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim/NDNS").size(), 2);
   m_tool.deleteZone("/net/ndnsim");
 
   BOOST_CHECK_NO_THROW(m_tool.createZone("/net/ndnsim", "/",
                                          time::seconds(1), time::days(1), ksk, Name()));
-  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim").size(), 3);
+  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim/NDNS").size(), 3);
   m_tool.deleteZone("/net/ndnsim");
 
   BOOST_CHECK_THROW(m_tool.createZone("/net/ndnsim", "/net",
@@ -611,13 +613,14 @@ BOOST_AUTO_TEST_CASE(AddRrSetDskCert)
 {
   Name parentZoneName("/ndns-test");
   Name zoneName("/ndns-test/child-zone");
+  Name zoneIdentityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
 
   Zone parentZone(parentZoneName);
 
   m_tool.createZone(parentZoneName, ROOT_ZONE, time::seconds(1), time::days(1), otherKsk, otherDsk);
   m_tool.createZone(zoneName, parentZoneName);
 
-  std::vector<Name>&& certs = getCerts(zoneName);
+  std::vector<Name>&& certs = getCerts(zoneIdentityName);
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
   std::sort(certs.begin(), certs.end());
 
@@ -636,6 +639,7 @@ BOOST_AUTO_TEST_CASE(AddRrSetDskCertUserProvidedCert)
   Name parentZoneName("/ndns-test");
   Name parentZoneIdentityName = Name(parentZoneName).append(label::NDNS_CERT_QUERY);
   Name zoneName("/ndns-test/child-zone");
+  Name zoneIdentityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
 
   // Name dskName = m_keyChain.generateRsaKeyPair(parentZoneName, false);
   Identity id = getIdentity(m_keyChain, parentZoneIdentityName);
@@ -646,7 +650,7 @@ BOOST_AUTO_TEST_CASE(AddRrSetDskCertUserProvidedCert)
   m_tool.createZone(parentZoneName, ROOT_ZONE, time::seconds(1), time::days(1), otherKsk, otherDsk);
   m_tool.createZone(zoneName, parentZoneName);
 
-  std::vector<Name>&& certs = getCerts(zoneName);
+  std::vector<Name>&& certs = getCerts(zoneIdentityName);
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
   std::sort(certs.begin(), certs.end());
 

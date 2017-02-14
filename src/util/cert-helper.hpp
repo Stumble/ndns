@@ -52,7 +52,7 @@ getCertificate(const KeyChain& keyChain,
   Identity id = keyChain.getPib().getIdentity(identity);
   for (const auto& key : id.getKeys()) {
     for (const auto& cert : key.getCertificates()) {
-      if (cert.getName() == cert.getName()) {
+      if (cert.getName() == certName) {
         return cert;
       }
     }
