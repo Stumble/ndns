@@ -136,11 +136,12 @@ ManagementTool::createZone(const Name &zoneName,
 
   //third create ID-cert
   NDNS_LOG_INFO("Start creating DSK's ID-CERT");
-  std::cout << kskCert.getName() << std::endl;
-  std::cout << dskCert.getName() << std::endl;
   addIdCert(zone, kskCert, cacheTtl);
-  std::cout << "add dd" << std::endl;
   addIdCert(zone, dskCert, cacheTtl);
+
+  NDNS_LOG_INFO("Start saving KSK and DSK's id to ZoneInfo");
+  m_dbMgr.setZoneInfo(zone, "ksk", kskCert.getName().toUri());
+  m_dbMgr.setZoneInfo(zone, "dsk", dskCert.getName().toUri());
 }
 
 void

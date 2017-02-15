@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS zones (
 CREATE TABLE IF NOT EXISTS zone_info (
   zone_id  INTEGER NOT NULL,
   key      VARCHAR(10) NOT NULL,
-  value    VARCHAR(50) NOT NULL,
+  value    TEXT NOT NULL,
   PRIMARY KEY (zone_id, key),
   FOREIGN KEY(zone_id) REFERENCES zones(id) ON UPDATE Cascade ON DELETE Cascade);
 

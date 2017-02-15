@@ -149,26 +149,14 @@ public:
   }
 
   std::vector<Name>
-  getCerts(const Name& identityName)
+  getCerts(const Name& zoneName)
   {
-    // if not consistent with NDNS db, this method makes no sense
-    // so, i have to think of another way to extra certificate.
-    Identity identity = getIdentity(m_keyChain, identityName);
+    Zone zone(zoneName);
     std::vector<Name> certs;
-
-    for (const auto& key : identity.getKeys()) {
-      for (const auto& cert : key.getCertificates()) {
-        certs.push_back(cert.getName());
-      }
-    }
-
-    // sort certs that self signing showed up first
-    sort(certs.begin(), certs.end(),
-         [](const Name& a, const Name& b) {
-           ndn::name::Component selfSigned("self");
-           return int(a.get(-2) == selfSigned) > int(b.get(-2) == selfSigned);
-         });
-
+    std::map<std::string, std::string> zoneInfo = m_dbMgr.getZoneInfo(zone);
+    // ksk are always the first key
+    certs.push_back(Name(zoneInfo["ksk"]));
+    certs.push_back(Name(zoneInfo["dsk"]));
     return certs;
   }
 
@@ -289,7 +277,7 @@ BOOST_AUTO_TEST_CASE(CreateDeleteChildFixture)
   m_tool.createZone(zoneName, parentZoneName);
   BOOST_CHECK_EQUAL(doesIdentityExist(m_keyChain, zoneIdentityName), true);
 
-  std::vector<Name>&& certs = getCerts(zoneIdentityName);
+  std::vector<Name>&& certs = getCerts(zoneName);
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
 
   // Name& ksk = certs[0];
@@ -315,7 +303,7 @@ BOOST_AUTO_TEST_CASE(CreateZoneWithFixture)
   m_tool.createZone(zoneName, parentZoneName, time::seconds(4200), time::days(30));
   BOOST_CHECK_EQUAL(doesIdentityExist(m_keyChain, zoneIdentityName), true);
 
-  std::vector<Name>&& certs = getCerts(zoneIdentityName);
+  std::vector<Name>&& certs = getCerts(zoneName);
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
 
   // Name& ksk = certs[0];
@@ -347,7 +335,7 @@ BOOST_AUTO_TEST_CASE(ZoneCreatePreconditions)
   BOOST_CHECK_NO_THROW(m_tool.createZone("/net/ndnsim", "/net"));
   BOOST_CHECK_THROW(m_tool.createZone("/net/ndnsim", "/net"), ndns::ManagementTool::Error);
 
-  std::vector<Name>&& certs = getCerts("/net/ndnsim/NDNS");
+  std::vector<Name>&& certs = getCerts("/net/ndnsim");
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
 
   Name& ksk = certs[0];
@@ -362,7 +350,7 @@ BOOST_AUTO_TEST_CASE(ZoneCreatePreconditions)
 
   BOOST_CHECK_NO_THROW(m_tool.createZone("/net/ndnsim", "/",
                                          time::seconds(1), time::days(1), ksk, dsk));
-  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim/NDNS").size(), 2);
+  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim").size(), 2);
   m_tool.deleteZone("/net/ndnsim");
 
   // no ksk and dsk will be generated
@@ -374,12 +362,12 @@ BOOST_AUTO_TEST_CASE(ZoneCreatePreconditions)
     std::cout << e.what() << std::endl;
   }
 
-  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim/NDNS").size(), 2);
+  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim").size(), 2);
   m_tool.deleteZone("/net/ndnsim");
 
   BOOST_CHECK_NO_THROW(m_tool.createZone("/net/ndnsim", "/",
                                          time::seconds(1), time::days(1), ksk, Name()));
-  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim/NDNS").size(), 3);
+  BOOST_CHECK_EQUAL(getCerts("/net/ndnsim").size(), 3);
   m_tool.deleteZone("/net/ndnsim");
 
   BOOST_CHECK_THROW(m_tool.createZone("/net/ndnsim", "/net",
@@ -631,7 +619,7 @@ BOOST_AUTO_TEST_CASE(AddRrSetDskCert)
   m_tool.createZone(parentZoneName, ROOT_ZONE, time::seconds(1), time::days(1), otherKsk, otherDsk);
   m_tool.createZone(zoneName, parentZoneName);
 
-  std::vector<Name>&& certs = getCerts(zoneIdentityName);
+  std::vector<Name>&& certs = getCerts(zoneName);
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
 
   Name& ksk = certs[0];
@@ -660,7 +648,7 @@ BOOST_AUTO_TEST_CASE(AddRrSetDskCertUserProvidedCert)
   m_tool.createZone(parentZoneName, ROOT_ZONE, time::seconds(1), time::days(1), otherKsk, otherDsk);
   m_tool.createZone(zoneName, parentZoneName);
 
-  std::vector<Name>&& certs = getCerts(zoneIdentityName);
+  std::vector<Name>&& certs = getCerts(zoneName);
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
 
   Name& ksk = certs[0];
