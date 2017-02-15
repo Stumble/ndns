@@ -109,6 +109,24 @@ public: // Zone manipulation
    * @post whatever the previous id is
    * @return true if the record exist
    */
+  void
+  setZoneInfo(Zone& zone,
+              const std::string& key,
+              const std::string& value);
+
+  /**
+   * @brief lookup the zone by name, fill the m_id and m_ttl
+   * @post whatever the previous id is
+   * @return true if the record exist
+   */
+  std::map<std::string, std::string>
+  getZoneInfo(Zone& zone);
+
+  /**
+   * @brief lookup the zone by name, fill the m_id and m_ttl
+   * @post whatever the previous id is
+   * @return true if the record exist
+   */
   bool
   find(Zone& zone);
 

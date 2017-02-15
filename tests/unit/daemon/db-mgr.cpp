@@ -81,6 +81,22 @@ BOOST_FIXTURE_TEST_CASE(Zones, DbMgrFixture)
   BOOST_CHECK_EQUAL(zone2.getId(), 0);
 }
 
+BOOST_FIXTURE_TEST_CASE(ZoneInfo, DbMgrFixture)
+{
+  Zone zone;
+  zone.setName("/net");
+  BOOST_CHECK_NO_THROW(session.insert(zone));
+
+  BOOST_CHECK_NO_THROW(session.setZoneInfo(zone, "dsk", "1"));
+  BOOST_CHECK_NO_THROW(session.setZoneInfo(zone, "ksk", "2222"));
+
+  std::map<std::string, std::string> zoneInfo;
+  zoneInfo = session.getZoneInfo(zone);
+
+  BOOST_CHECK_EQUAL(zoneInfo["dsk"], "1");
+  BOOST_CHECK_EQUAL(zoneInfo["ksk"], "2222");
+}
+
 BOOST_FIXTURE_TEST_CASE(Rrsets, DbMgrFixture)
 {
   Zone zone("/net");

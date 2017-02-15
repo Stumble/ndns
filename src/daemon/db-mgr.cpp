@@ -29,25 +29,32 @@ namespace ndns {
 
 NDNS_LOG_INIT("DbMgr")
 
-static const std::string NDNS_SCHEMA = "\
-CREATE TABLE IF NOT EXISTS zones (      \n\
-  id    INTEGER NOT NULL PRIMARY KEY,   \n\
-  name  blob NOT NULL UNIQUE,           \n\
-  ttl   integer(10) NOT NULL);          \n\
-                                        \n\
-CREATE TABLE IF NOT EXISTS rrsets (     \n\
-  id      INTEGER NOT NULL PRIMARY KEY, \n\
-  zone_id integer(10) NOT NULL,         \n\
-  label   blob NOT NULL,                \n\
-  type    blob NOT NULL,                \n\
-  version blob NOT NULL,                \n\
-  ttl     integer(10) NOT NULL,         \n\
-  data    blob NOT NULL,                                                \n\
-  FOREIGN KEY(zone_id) REFERENCES zones(id) ON UPDATE Cascade ON DELETE Cascade); \n\
-                                                                        \n\
-CREATE UNIQUE INDEX rrsets_zone_id_label_type_version                   \n\
-  ON rrsets (zone_id, label, type, version);                            \n\
-";
+static const std::string NDNS_SCHEMA = R"VALUE(
+CREATE TABLE IF NOT EXISTS zones (
+  id    INTEGER NOT NULL PRIMARY KEY,
+  name  blob NOT NULL UNIQUE,
+  ttl   integer(10) NOT NULL);
+
+CREATE TABLE IF NOT EXISTS zone_info (
+  zone_id  INTEGER NOT NULL,
+  key      VARCHAR(10) NOT NULL,
+  value    VARCHAR(50) NOT NULL,
+  PRIMARY KEY (zone_id, key),
+  FOREIGN KEY(zone_id) REFERENCES zones(id) ON UPDATE Cascade ON DELETE Cascade);
+
+CREATE TABLE IF NOT EXISTS rrsets (
+  id      INTEGER NOT NULL PRIMARY KEY,
+  zone_id integer(10) NOT NULL,
+  label   blob NOT NULL,
+  type    blob NOT NULL,
+  version blob NOT NULL,
+  ttl     integer(10) NOT NULL,
+  data    blob NOT NULL,
+  FOREIGN KEY(zone_id) REFERENCES zones(id) ON UPDATE Cascade ON DELETE Cascade);
+
+CREATE UNIQUE INDEX rrsets_zone_id_label_type_version
+  ON rrsets (zone_id, label, type, version);
+)VALUE";
 
 DbMgr::DbMgr(const std::string& dbFile/* = DEFAULT_CONFIG_PATH "/" "ndns.db"*/)
   : m_dbFile(dbFile)
@@ -148,6 +155,73 @@ DbMgr::insert(Zone& zone)
   zone.setId(sqlite3_last_insert_rowid(m_conn));
   sqlite3_finalize(stmt);
 }
+
+void
+DbMgr::setZoneInfo(Zone& zone,
+                   const std::string& key,
+                   const std::string& value)
+{
+  if (zone.getId() == 0) {
+    throw Error("zone has not been initialized");
+  }
+
+  if (key.length() > 10) {
+    throw Error("key length should not exceed 10");
+  }
+
+  sqlite3_stmt* stmt;
+  const char* sql = "INSERT OR REPLACE INTO zone_info (zone_id, key, value) VALUES (?, ?, ?)";
+  int rc = sqlite3_prepare_v2(m_conn, sql, -1, &stmt, 0);
+  if (rc != SQLITE_OK) {
+    throw PrepareError(sql);
+  }
+
+  sqlite3_bind_int(stmt,  1, zone.getId());
+  sqlite3_bind_text(stmt, 2, key.c_str(), key.length(), SQLITE_STATIC);
+  sqlite3_bind_text(stmt, 3, value.c_str(), value.length(), SQLITE_STATIC);
+
+  rc = sqlite3_step(stmt);
+  if (rc != SQLITE_DONE) {
+    sqlite3_finalize(stmt);
+    throw ExecuteError(sql);
+  }
+
+  sqlite3_finalize(stmt);
+}
+
+std::map<std::string, std::string>
+DbMgr::getZoneInfo(Zone& zone)
+{
+  using std::string;
+  std::map<string, string> rtn;
+
+  if (zone.getId() == 0) {
+    find(zone);
+  }
+
+  if (zone.getId() == 0) {
+    throw Error("zone has not been initialized");
+  }
+
+  sqlite3_stmt* stmt;
+  const char* sql = "SELECT key, value FROM zone_info WHERE zone_id=?";
+  int rc = sqlite3_prepare_v2(m_conn, sql, -1, &stmt, 0);
+  if (rc != SQLITE_OK) {
+    throw PrepareError(sql);
+  }
+
+  sqlite3_bind_int(stmt, 1, zone.getId());
+
+  while (sqlite3_step(stmt) == SQLITE_ROW) {
+    const char* key = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+    const char* value = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+    rtn[string(key)] = string(value);
+  }
+
+  sqlite3_finalize(stmt);
+  return rtn;
+}
+
 
 bool
 DbMgr::find(Zone& zone)
