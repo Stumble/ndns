@@ -81,7 +81,8 @@ inline Certificate
 createCertificate(KeyChain& keyChain,
                   const security::Key& key,
                   const security::Key& signingKey,
-                  const std::string& issuer)
+                  const std::string& issuer,
+                  const time::seconds& certValidity = time::days(10))
 {
   Name certificateName = key.getName();
   certificateName
@@ -100,7 +101,7 @@ createCertificate(KeyChain& keyChain,
   // set signature-info
   SignatureInfo info;
   info.setValidityPeriod(security::ValidityPeriod(time::system_clock::now(),
-                                                  time::system_clock::now() + time::days(10)));
+                                                  time::system_clock::now() + certValidity));
 
   keyChain.sign(certificate, signingByKey(signingKey).setSignatureInfo(info));
   return certificate;

@@ -100,12 +100,9 @@ ManagementTool::createZone(const Name &zoneName,
   Certificate dskCert;
   Certificate kskCert;
   Identity zoneIdentity = m_keyChain.createIdentity(zoneIdentityName);
-  // this assume that keyChain is consistent with NDNS database
-  // i.e. if zone does not exitst in NDNS database
-  //      then identity with 'zoneName/NDNS'does not exist in keyChain
 
   if (kskCertName == DEFAULT_CERT) {
-    ksk = zoneIdentity.getDefaultKey();
+    ksk = m_keyChain.createKey(zoneIdentity);
     kskCert = ksk.getDefaultCertificate();
     kskCert.setFreshnessPeriod(cacheTtl);
     NDNS_LOG_INFO("Generated KSK: " << kskCert.getName());
@@ -120,7 +117,7 @@ ManagementTool::createZone(const Name &zoneName,
     // if no dsk provided, then generate a dsk either signed by ksk auto generated or user provided
     dsk = m_keyChain.createKey(zoneIdentity);
     m_keyChain.deleteCertificate(dsk, dsk.getDefaultCertificate().getName());
-    dskCert = createCertificate(m_keyChain, dsk, ksk, label::CERT_RR_TYPE.toUri());
+    dskCert = createCertificate(m_keyChain, dsk, ksk, label::CERT_RR_TYPE.toUri(), certValidity);
     dskCert.setFreshnessPeriod(cacheTtl);
     // dskCert will become the default certificate, since the default cert has been deleted.
     m_keyChain.addCertificate(dsk, dskCert);
@@ -139,7 +136,10 @@ ManagementTool::createZone(const Name &zoneName,
 
   //third create ID-cert
   NDNS_LOG_INFO("Start creating DSK's ID-CERT");
+  std::cout << kskCert.getName() << std::endl;
+  std::cout << dskCert.getName() << std::endl;
   addIdCert(zone, kskCert, cacheTtl);
+  std::cout << "add dd" << std::endl;
   addIdCert(zone, dskCert, cacheTtl);
 }
 
