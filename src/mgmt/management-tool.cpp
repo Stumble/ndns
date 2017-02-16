@@ -103,8 +103,12 @@ ManagementTool::createZone(const Name &zoneName,
 
   if (kskCertName == DEFAULT_CERT) {
     ksk = m_keyChain.createKey(zoneIdentity);
-    kskCert = ksk.getDefaultCertificate();
+    // delete automatically generated certificates,
+    // because its issue is 'self' instead of CERT_RR_TYPE
+    m_keyChain.deleteCertificate(ksk, ksk.getDefaultCertificate().getName());
+    kskCert = createCertificate(m_keyChain, ksk, ksk, label::CERT_RR_TYPE.toUri(), time::days(90));
     kskCert.setFreshnessPeriod(cacheTtl);
+    m_keyChain.addCertificate(ksk, kskCert);
     NDNS_LOG_INFO("Generated KSK: " << kskCert.getName());
   }
   else {
@@ -168,7 +172,7 @@ ManagementTool::exportCertificate(const Name& certName, const std::string& outFi
 {
   // only search in local NDNS database
   Certificate cert;
-  shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<KEY>(<>+)<ID-CERT><>");
+  shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<NDNS>(<>+)<ID-CERT><>");
   if (!regex->match(certName)) {
     throw Error("Certificate name is illegal");
     return;
@@ -281,6 +285,7 @@ ManagementTool::addRrsetFromFile(const Name& zoneName,
 {
   //check precondition
   Zone zone(zoneName);
+  Name zoneIdentityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
   if (!m_dbMgr.find(zone)) {
     throw Error(zoneName.toUri() + " is not presented in the NDNS db");
   }
@@ -288,11 +293,11 @@ ManagementTool::addRrsetFromFile(const Name& zoneName,
   Name dskName;
   Name dskCertName = inputDskCertName;
   if (dskCertName == DEFAULT_CERT) {
-    dskName = getDefaultKeyNameForIdentity(m_keyChain, zoneName);
-    dskCertName = getDefaultCertificateNameForIdentity(m_keyChain, zoneName);
+    dskName = getDefaultKeyNameForIdentity(m_keyChain, zoneIdentityName);
+    dskCertName = getDefaultCertificateNameForIdentity(m_keyChain, zoneIdentityName);
   }
   else {
-    if (!matchCertificate(dskCertName, zoneName)) {
+    if (!matchCertificate(dskCertName, zoneIdentityName)) {
       throw Error("Cannot verify certificate");
     }
   }
@@ -446,9 +451,9 @@ ManagementTool::listZone(const Name& zoneName, std::ostream& os, const bool prin
         util::IndentedStream istream(os, "; ");
 
         if (re.getRrType() == label::CERT_RR_TYPE) {
-          shared_ptr<Data> data = re.toData();
-          IdentityCertificate cert(*data);
-          cert.printCertificate(istream);
+          Certificate cert(rrset.getData());
+          os << cert;
+          // cert.printCertificate(istream);
         }
         else {
           using namespace CryptoPP;
@@ -478,11 +483,12 @@ ManagementTool::listAllZones(std::ostream& os) {
     os.setf(os.left);
     os.width(nameWidth + 2);
     os << zone.getName().toUri();
+    Name zoneIdentity = Name(zone.getName()).append(label::NDNS_CERT_QUERY);
 
     os << "; default-ttl=" << zone.getTtl().count();
-    os << " default-key=" << getDefaultKeyNameForIdentity(m_keyChain, zone.getName());
+    os << " default-key=" << getDefaultKeyNameForIdentity(m_keyChain, zoneIdentity);
     os << " default-certificate="
-       << getDefaultCertificateNameForIdentity(m_keyChain, zone.getName());
+       << getDefaultCertificateNameForIdentity(m_keyChain, zoneIdentity);
     os << std::endl;
   }
 }

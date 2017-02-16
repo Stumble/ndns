@@ -40,9 +40,10 @@ RrsetFactory::RrsetFactory(const boost::filesystem::path& dbFile,
   , m_dskCertName(inputDskCertName)
   , m_checked(false)
 {
+  Name identityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
   if (m_dskCertName == DEFAULT_CERT) {
-    m_dskName = getDefaultKeyNameForIdentity(m_keyChain, zoneName);
-    m_dskCertName = getDefaultCertificateNameForIdentity(m_keyChain, zoneName);
+    m_dskName = getDefaultKeyNameForIdentity(m_keyChain, identityName);
+    m_dskCertName = getDefaultCertificateNameForIdentity(m_keyChain, identityName);
   }
 }
 
