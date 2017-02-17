@@ -29,6 +29,7 @@
 
 #include <ndn-cxx/util/io.hpp>
 #include <ndn-cxx/util/regex.hpp>
+#include <ndn-cxx/security/v1/cryptopp.hpp>
 
 #include "test-common.hpp"
 
@@ -908,20 +909,15 @@ BOOST_FIXTURE_TEST_CASE(GetRrSet, ManagementToolFixture)
 
   m_tool.addRrset(rrset1);
 
-  std::string expectedValue =
-    R"VALUE(Bv0BeAchCAluZG5zLXRlc3QIBE5ETlMIBWxhYmVsCANUWFQIAv1kFAgYAgQ/GQID
-6BUQvwZWYWx1ZTG/BlZhbHVlMhYzGwEBHC4HLAgJbmRucy10ZXN0CANLRVkIEWRz
-ay0xNDE2OTc0MDA2NjU5CAdJRC1DRVJUF/0BAL7Phidi+mM5cWM6alaV38qpEd+D
-kV1bHEO1BT7jsjfxW8INS7OJVUbr5ducBDTjzCp9dYjKncKv0f3hcZIX7fl9/msL
-6FuCKqrYgEZIgSD3q6DFzh04FUjrMJvqZp1D3LBh1yIKARA9TI0C6TKrlOT40iuY
-wvifmpSna7gOuh1k+qvKvx+/Y6csCw9WVLxnW12/AJdlfv3PPPnDlKkN7DozUV+s
-c7Jf+hhhZDntij+fMYBVgk0Ub/udOJrznlcZKW6C7YK57wq806kO3430gLQBEkGC
-NuOojYCk2k4Skp830cvIdy1Ld5lY1qrBZOIKR38KIy8jchP9+MEB88jvXrY=
-)VALUE";
+  std::stringstream os;
+
+  using namespace CryptoPP;
+  StringSource ss(rrset1.getData().wire(), rrset1.getData().size(), true,
+                  new Base64Encoder(new FileSink(os), true, 64));
+  std::string expectedValue = os.str();
 
   output_test_stream testOutput;
   m_tool.getRrSet(zoneName, "/label",label::TXT_RR_TYPE, testOutput);
-  BOOST_CHECK(testOutput.check_length(expectedValue.length(), false));
   BOOST_CHECK(testOutput.is_equal(expectedValue));
 }
 
