@@ -32,6 +32,7 @@
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/util/io.hpp>
+#include <ndn-cxx/util/regex.hpp>
 #include <ndn-cxx/encoding/block.hpp>
 #include <ndn-cxx/encoding/block-helpers.hpp>
 #include <boost/noncopyable.hpp>
@@ -155,14 +156,14 @@ private:
   }
 
   void
-  onDataValidated(const shared_ptr<const Data>& data)
+  onDataValidated(const Data& data)
   {
     NDNS_LOG_INFO("data pass verification");
     this->stop();
   }
 
   void
-  onDataValidationFailed(const shared_ptr<const Data>& data, const std::string& str)
+  onDataValidationFailed(const Data& data, const ValidationError& str)
   {
     NDNS_LOG_INFO("data does not pass verification");
     m_hasError = true;
@@ -189,7 +190,7 @@ private:
   time::milliseconds m_interestLifetime;
 
   Face& m_face;
-  Validator m_validator;
+  ValidatorNdns m_validator;
   KeyChain m_keyChain;
 
   shared_ptr<Data> m_update;
@@ -413,7 +414,7 @@ main(int argc, char* argv[])
     else
       return 0;
   }
-  catch (const ndn::ValidatorConfig::Error& e) {
+  catch (const security::conf::Error& e) {
     std::cerr << "Fail to create the validator: " << e.what() << std::endl;
     return 1;
   }

@@ -19,6 +19,8 @@
 
 #include "database-test-data.hpp"
 #include "daemon/rrset-factory.hpp"
+#include "util/cert-helper.hpp"
+
 #include <ndn-cxx/security/verification-helpers.hpp>
 
 namespace ndn {
@@ -43,15 +45,20 @@ DbTestData::DbTestData()
 {
   NDNS_LOG_TRACE("start creating test data");
 
-  ndns::Validator::VALIDATOR_CONF_FILE = TEST_CONFIG_PATH "/" "validator.conf";
+  ndns::ValidatorNdns::VALIDATOR_CONF_FILE = TEST_CONFIG_PATH "/" "validator.conf";
 
   // m_keyChain.deleteIdentity(TEST_IDENTITY_NAME);
   // m_certName = m_keyChain.createIdentity(TEST_IDENTITY_NAME);
 
   // ndn::io::save(*(m_keyChain.getCertificate(m_certName)), TEST_CERT.string());
-  m_identity = this->addIdentity(TEST_IDENTITY_NAME);
-  m_cert = m_identity.getDefaultKey().getDefaultCertificate();
+  Name identityName = Name(TEST_IDENTITY_NAME).append("NDNS");
+  m_identity = this->addIdentity(identityName);
+  Key key = m_identity.getDefaultKey();
+  m_keyChain.deleteCertificate(key, key.getDefaultCertificate().getName());
+  m_cert = createCertificate(m_keyChain, key, key, "ID-CERT");
   m_certName = m_cert.getName();
+  m_keyChain.addCertificate(key, m_cert);
+
   saveIdentityCertificate(m_identity, TEST_CERT.string());
 
   NDNS_LOG_INFO("save test root cert " << m_certName << " to: " << TEST_CERT.string());
@@ -61,7 +68,7 @@ DbTestData::DbTestData()
 
   m_root = Zone(TEST_IDENTITY_NAME);
   Name name(TEST_IDENTITY_NAME);
-    name.append("net");
+  name.append("net");
   m_net = Zone(name);
   name.append("ndnsim");
   m_ndnsim =Zone(name);
@@ -138,7 +145,7 @@ DbTestData::addRrset(Zone& zone, const Name& label, const name::Component& type,
     }
   } else if (type == label::TXT_RR_TYPE) {
     rrset = rf.generateTxtRrset(label, type, version.toVersion(), ttl,
-                           std::vector<std::string>());
+                                std::vector<std::string>());
   } else if (type == label::CERT_RR_TYPE) {
     rrset = rf.generateCertRrset(label, type, version.toVersion(), ttl,
                                  m_cert);

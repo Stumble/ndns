@@ -22,7 +22,6 @@
 #ifndef NDN_TESTS_IDENTITY_MANAGEMENT_FIXTURE_HPP
 #define NDN_TESTS_IDENTITY_MANAGEMENT_FIXTURE_HPP
 
-#include <ndn-cxx/security/v1/key-chain.hpp>
 #include <ndn-cxx/security/v2/key-chain.hpp>
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <vector>

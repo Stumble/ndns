@@ -53,7 +53,7 @@ class NameServer : noncopyable
 public:
   explicit
   NameServer(const Name& zoneName, const Name& certName, Face& face, DbMgr& dbMgr,
-             KeyChain& keyChain, Validator& validator);
+             KeyChain& keyChain, ValidatorNdns& validator);
 
 NDNS_PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   void
@@ -130,7 +130,7 @@ private:
 
   Face& m_face;
   KeyChain& m_keyChain;
-  Validator& m_validator;
+  ValidatorNdns& m_validator;
 };
 
 } // namespace ndns

@@ -29,7 +29,7 @@ NDNS_LOG_INIT("NameServer")
 const time::milliseconds NAME_SERVER_DEFAULT_CONTENT_FRESHNESS(4000);
 
 NameServer::NameServer(const Name& zoneName, const Name& certName, Face& face, DbMgr& dbMgr,
-                       KeyChain& keyChain, Validator& validator)
+                       KeyChain& keyChain, ValidatorNdns& validator)
   : m_zone(zoneName)
   , m_dbMgr(dbMgr)
   , m_ndnsPrefix(zoneName)
@@ -129,7 +129,7 @@ NameServer::handleUpdate(const Name& prefix, const Interest& interest, const lab
     }
     m_validator.validate(*data,
                          bind(&NameServer::doUpdate, this, interest.shared_from_this(), data),
-                         [this] (const shared_ptr<const Data>& data, const std::string& msg) {
+                         [this] (const Data& data, const ValidationError& msg) {
                            NDNS_LOG_WARN("Ignoring update that did not pass the verification. "
                                          << "Check the root certificate")
                          });

@@ -61,7 +61,7 @@ public:
   IterativeQueryController(const Name& dstLabel, const name::Component& rrType,
                            const time::milliseconds& interestLifetime,
                            const QuerySucceedCallback& onSucceed, const QueryFailCallback& onFail,
-                           Face& face, Validator* validator = nullptr);
+                           Face& face, ValidatorNdns* validator = nullptr);
 
   virtual void
   start();
@@ -78,7 +78,7 @@ NDNS_PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   onData(const ndn::Interest& interest, const Data& data);
 
   void
-  onDataValidated(const shared_ptr<const Data>& data, NdnsContentType contentType);
+  onDataValidated(const Data& data, NdnsContentType contentType);
 
   /**
    * @brief change the Controller state according to timeout. For current,
@@ -129,7 +129,7 @@ public:
   }
 
 protected:
-  Validator* m_validator;
+  ValidatorNdns* m_validator;
   /**
    * @brief current query step
    */

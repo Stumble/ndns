@@ -21,22 +21,23 @@
 #include "config.hpp"
 #include "validator.hpp"
 
-#include "ndn-cxx/data.hpp"
-#include <ndn-cxx/security/validator-config.hpp>
-
+#include <ndn-cxx/security/v2/validation-policy-config.hpp>
+#include <ndn-cxx/security/v2/certificate-fetcher-from-network.hpp>
 
 namespace ndn {
 namespace ndns {
 
 NDNS_LOG_INIT("validator")
 
-std::string Validator::VALIDATOR_CONF_FILE = DEFAULT_CONFIG_PATH "/" "validator.conf";
+std::string ValidatorNdns::VALIDATOR_CONF_FILE = DEFAULT_CONFIG_PATH "/" "validator.conf";
 
-Validator::Validator(Face& face, const std::string& confFile /* = VALIDATOR_CONF_FILE */)
-  : ValidatorConfig(face)
+ValidatorNdns::ValidatorNdns(Face& face, const std::string& confFile /* = VALIDATOR_CONF_FILE */)
+  : Validator(make_unique<security::v2::ValidationPolicyConfig>(),
+              make_unique<security::v2::CertificateFetcherFromNetwork>(face))
 {
+  ValidationPolicyConfig& policyConfig = dynamic_cast<ValidationPolicyConfig&>(Validator::getPolicy());
   try {
-    this->load(confFile);
+    policyConfig.load(confFile);
     NDNS_LOG_TRACE("Validator loads configuration: " << confFile);
   }
   catch (std::exception&) {
@@ -54,10 +55,10 @@ Validator::Validator(Face& face, const std::string& confFile /* = VALIDATOR_CONF
       "      type name                                                            \n"
       "      hyper-relation                                                       \n"
       "      {                                                                    \n"
-      "        k-regex ^(<>*)<KEY>(<>*)<><ID-CERT>$                               \n"
+      "        k-regex ^(<>*)<NDNS>(<>*)<><ID-CERT>$                              \n"
       "        k-expand \\\\1\\\\2                                                \n"
       "        h-relation is-prefix-of                                            \n"
-      "        p-regex ^(<>*)[<KEY><NDNS>](<>*)<><>$                              \n"
+      "        p-regex ^(<>*)[<NDNS>](<>*)<><>$                                   \n"
       "        p-expand \\\\1\\\\2                                                \n"
       "      }                                                                    \n"
       "    }                                                                      \n"
@@ -79,44 +80,45 @@ Validator::Validator(Face& face, const std::string& confFile /* = VALIDATOR_CONF
       "                                                                           \n"
       ;
 
-    this->load(config, "embededConf");
+    policyConfig.load(config, "embededConf");
     NDNS_LOG_TRACE("Validator loads embedded configuration with anchors path: anchors/root.cert");
   }
 
 }
 
 void
-Validator::validate(const Data& data,
-                    const OnDataValidated& onValidated,
-                    const OnDataValidationFailed& onValidationFailed)
+ValidatorNdns::validate(const Data& data,
+                        const DataValidationSuccessCallback& onValidated,
+                        const DataValidationFailureCallback& onValidationFailed)
 {
   NDNS_LOG_TRACE("[* ?? *] verify data: " << data.getName() << ". KeyLocator: "
                  << data.getSignature().getKeyLocator().getName());
-  ValidatorConfig::validate(data,
-                            [this, onValidated] (const shared_ptr<const Data>& data) {
-                              this->onDataValidated(data);
-                              onValidated(data);
-                            },
-                            [this, onValidationFailed] (const shared_ptr<const Data>& data,
-                                                        const std::string& str) {
-                              this->onDataValidationFailed(data, str);
-                              onValidationFailed(data, str);
-                            }
-                            );
+  Validator::validate(data,
+                      [this, onValidated] (const Data& data) {
+                        this->onDataValidated(data);
+                        onValidated(data);
+                      },
+                      [this, onValidationFailed] (const Data& data,
+                                                  const ValidationError& error) {
+                        this->onDataValidationFailed(data, error);
+                        onValidationFailed(data, error);
+                      }
+                      );
 }
 
 void
-Validator::onDataValidated(const shared_ptr<const Data>& data)
+ValidatorNdns::onDataValidated(const Data& data)
 {
-  NDNS_LOG_TRACE("[* VV *] pass validation: " << data->getName() << ". KeyLocator = "
-                 << data->getSignature().getKeyLocator().getName());
+  NDNS_LOG_TRACE("[* VV *] pass validation: " << data.getName() << ". KeyLocator = "
+                 << data.getSignature().getKeyLocator().getName());
 }
 
 void
-Validator::onDataValidationFailed(const shared_ptr<const Data>& data, const std::string& str)
+ValidatorNdns::onDataValidationFailed(const Data& data,
+                                      const security::v2::ValidationError& err)
 {
-  NDNS_LOG_WARN("[* XX *] fail validation: " << data->getName() << ". due to: " << str
-                << ". KeyLocator = " << data->getSignature().getKeyLocator().getName());
+  NDNS_LOG_WARN("[* XX *] fail validation: " << data.getName() << ". due to: " << err
+                << ". KeyLocator = " << data.getSignature().getKeyLocator().getName());
 }
 
 } // namespace ndns

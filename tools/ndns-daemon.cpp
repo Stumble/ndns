@@ -25,6 +25,7 @@
 #include "util/cert-helper.hpp"
 
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 
 namespace ndn {
 namespace ndns {
@@ -94,7 +95,7 @@ public:
       validatorConfigFile = item->second.get_value<std::string>();
     }
     NDNS_LOG_INFO("ValidatorConfigFile = " << validatorConfigFile);
-    m_validator = unique_ptr<Validator>(new Validator(m_validatorFace, validatorConfigFile));
+    m_validator = unique_ptr<ValidatorNdns>(new ValidatorNdns(m_validatorFace, validatorConfigFile));
 
     for (const auto& option : section) {
       Name name;
@@ -141,7 +142,7 @@ public:
 private:
   Face& m_face;
   Face& m_validatorFace;
-  unique_ptr<Validator> m_validator;
+  unique_ptr<ValidatorNdns> m_validator;
   unique_ptr<DbMgr> m_dbMgr;
   std::vector<shared_ptr<NameServer>> m_servers;
   KeyChain m_keyChain;

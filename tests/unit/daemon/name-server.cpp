@@ -17,6 +17,8 @@
  * NDNS, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ndn-cxx/util/regex.hpp>
+
 #include "daemon/name-server.hpp"
 #include "daemon/db-mgr.hpp"
 #include "clients/response.hpp"
@@ -54,7 +56,7 @@ public:
 public:
   ndn::util::DummyClientFace face;
   const Name& zone;
-  Validator validator;
+  ValidatorNdns validator;
   ndns::NameServer server;
 };
 
@@ -118,7 +120,7 @@ BOOST_AUTO_TEST_CASE(KeyQuery)
     BOOST_CHECK_EQUAL(resp.getContentType(), NDNS_KEY);
   });
 
-  q.setRrLabel("dsk-1");
+  q.setRrLabel("/KEY/1");
 
   face.receive(q.toInterest());
   run();
@@ -126,7 +128,7 @@ BOOST_AUTO_TEST_CASE(KeyQuery)
   BOOST_CHECK_EQUAL(nDataBack, 2);
 
   // explicit interest with correct version
-  face.receive(Interest("/test19/KEY/dsk-1/ID-CERT/%FDd"));
+  face.receive(Interest("/test19/NDNS/KEY/1/ID-CERT/%FDd"));
 
   face.onSendData.connectSingleShot([&] (const Data& data) {
     ++nDataBack;
@@ -140,7 +142,7 @@ BOOST_AUTO_TEST_CASE(KeyQuery)
   BOOST_CHECK_EQUAL(nDataBack, 3);
 
   // explicit interest with wrong version
-  face.receive(Interest("/test19/KEY/dsk-1/ID-CERT/%FD010101010"));
+  face.receive(Interest("/test19/NDNS/KEY/1/ID-CERT/%FD010101010"));
 
   face.onSendData.connectSingleShot([&] (const Data& data) {
     ++nDataBack;
@@ -181,6 +183,8 @@ BOOST_AUTO_TEST_CASE(UpdateReplaceRr)
 
   bool hasDataBack = false;
 
+  std::cout << "????" << std::endl;
+
   face.onSendData.connectSingleShot([&] (const Data& data) {
     hasDataBack = true;
     NDNS_LOG_TRACE("get Data back");
@@ -200,8 +204,9 @@ BOOST_AUTO_TEST_CASE(UpdateReplaceRr)
     ret = readNonNegativeInteger(*val);
     BOOST_CHECK_EQUAL(ret, 0);
   });
-
+  std::cout << "sadkchhjshjd" << std::endl;
   face.receive(q.toInterest());
+  std::cout << "after sending" << std::endl;
   run();
 
   BOOST_CHECK_EQUAL(hasDataBack, true);
@@ -366,7 +371,7 @@ public:
   ndn::util::DummyClientFace face;
   ndn::util::DummyClientFace validatorFace;
   const Name& zone;
-  Validator validator;
+  ValidatorNdns validator;
   ndns::NameServer server;
 };
 
