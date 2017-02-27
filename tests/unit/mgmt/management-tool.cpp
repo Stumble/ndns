@@ -352,6 +352,15 @@ BOOST_AUTO_TEST_CASE(CreateZoneWithFixture)
   BOOST_REQUIRE_NO_THROW(rrset = findRrSet(zone, getLabel(zone, dsk), label::CERT_RR_TYPE));
   BOOST_CHECK_EQUAL(rrset.getTtl(), time::seconds(4200));
 
+  // Check auth record of DSK and KSK
+  BOOST_REQUIRE_NO_THROW(rrset = findRrSet(zone, getLabel(zone, dsk).getPrefix(1), label::NS_RR_TYPE));
+  BOOST_CHECK_EQUAL(rrset.getTtl(), time::seconds(4200));
+  BOOST_CHECK_EQUAL(Data(rrset.getData()).getContentType(), NDNS_AUTH);
+
+  BOOST_REQUIRE_NO_THROW(rrset = findRrSet(zone, getLabel(zone, ksk).getPrefix(1), label::NS_RR_TYPE));
+  BOOST_CHECK_EQUAL(rrset.getTtl(), time::seconds(4200));
+  BOOST_CHECK_EQUAL(Data(rrset.getData()).getContentType(), NDNS_AUTH);
+
   // Check certificate freshnessPeriod and validity
   Certificate cert = getCertificate(m_keyChain, zoneIdentityName, dsk);
   time::system_clock::TimePoint beg,end;

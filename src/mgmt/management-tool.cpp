@@ -125,6 +125,7 @@ ManagementTool::createZone(const Name &zoneName,
     dskCert.setFreshnessPeriod(cacheTtl);
     // dskCert will become the default certificate, since the default cert has been deleted.
     m_keyChain.addCertificate(dsk, dskCert);
+    m_keyChain.setDefaultKey(zoneIdentity, dsk);
     NDNS_LOG_INFO("Generated DSK: " << dskCert.getName());
   }
   else {
@@ -139,9 +140,9 @@ ManagementTool::createZone(const Name &zoneName,
   addZone(zone);
 
   //third create ID-cert
-  NDNS_LOG_INFO("Start creating DSK's ID-CERT");
-  addIdCert(zone, kskCert, cacheTtl);
-  addIdCert(zone, dskCert, cacheTtl);
+  NDNS_LOG_INFO("Start adding Certificates to NDNS database");
+  addIdCert(zone, kskCert, cacheTtl, dskCert);
+  addIdCert(zone, dskCert, cacheTtl, dskCert);
 
   NDNS_LOG_INFO("Start saving KSK and DSK's id to ZoneInfo");
   m_dbMgr.setZoneInfo(zone, "ksk", kskCert.getName().toUri());
@@ -532,26 +533,47 @@ ManagementTool::getRrSet(const Name& zoneName,
 
 void
 ManagementTool::addIdCert(Zone& zone, const Certificate& cert,
-                          const time::seconds& ttl)
+                          const time::seconds& ttl,
+                          const Certificate& dskCert)
 {
-  Rrset rrset(&zone);
+  Rrset rrsetKey(&zone);
   size_t size = zone.getName().size();
   Name label = cert.getName().getSubName(size + 1, cert.getName().size() - size - 3);
-  rrset.setLabel(label);
-  rrset.setType(label::CERT_RR_TYPE);
-  rrset.setTtl(ttl);
-  rrset.setVersion(cert.getName().get(-1));
-  rrset.setData(cert.wireEncode());
+  rrsetKey.setLabel(label);
+  rrsetKey.setType(label::CERT_RR_TYPE);
+  rrsetKey.setTtl(ttl);
+  rrsetKey.setVersion(cert.getName().get(-1));
+  rrsetKey.setData(cert.wireEncode());
 
-  if (m_dbMgr.find(rrset)) {
+  Rrset rrsetAuth(&zone);
+  Name authLabel(label.getPrefix(1));
+  Name authDataName = Name(zone.getName()).append(label::NDNS_ITERATIVE_QUERY)
+                                          .append(authLabel)
+                                          .append(label::NS_RR_TYPE)
+                                          .appendVersion();
+  Data authData(authDataName);
+  authData.setContentType(NDNS_AUTH);
+  authData.setFreshnessPeriod(ttl);
+  m_keyChain.sign(authData, signingByCertificate(dskCert));
+
+  rrsetAuth.setData(authData.wireEncode());
+  rrsetAuth.setLabel(authLabel);
+  rrsetAuth.setType(label::NS_RR_TYPE);
+  rrsetAuth.setTtl(ttl);
+  rrsetAuth.setVersion(authData.getName().get(-1));
+
+  if (m_dbMgr.find(rrsetKey)) {
     throw Error("ID-CERT with label=" + label.toUri() +
                 " is already presented in local NDNS databse");
   }
+
+  m_dbMgr.insert(rrsetKey);
   NDNS_LOG_INFO("Add rrset with zone-id: " << zone.getId() << " label: " << label << " type: "
                 << label::CERT_RR_TYPE);
 
-  // should use add multiLevelrrset here
-  m_dbMgr.insert(rrset);
+  m_dbMgr.insert(rrsetAuth);
+  NDNS_LOG_INFO("Add rrset with zone-id: " << zone.getId() << " label: " << authLabel << " type: "
+                << label::NS_RR_TYPE);
 }
 
 void

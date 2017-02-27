@@ -226,7 +226,9 @@ private:
   /** @brief add ID-CERT to the NDNS local database
    */
   void
-  addIdCert(Zone& zone, const Certificate& cert, const time::seconds& ttl);
+  addIdCert(Zone& zone, const Certificate& cert,
+            const time::seconds& ttl,
+            const Certificate& dskCertName);
 
   /** @brief add zone to the NDNS local database
    */
