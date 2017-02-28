@@ -58,7 +58,7 @@ ValidatorNdns::ValidatorNdns(Face& face, const std::string& confFile /* = VALIDA
       "        k-regex ^(<>*)<NDNS>(<>*)<><ID-CERT>$                              \n"
       "        k-expand \\\\1\\\\2                                                \n"
       "        h-relation is-prefix-of                                            \n"
-      "        p-regex ^(<>*)[<NDNS>](<>*)<><>$                                   \n"
+      "        p-regex ^(<>*)<NDNS>(<>*)<><>$                                     \n"
       "        p-expand \\\\1\\\\2                                                \n"
       "      }                                                                    \n"
       "    }                                                                      \n"

@@ -198,8 +198,7 @@ BOOST_AUTO_TEST_CASE(UpdateReplaceRr)
     BOOST_CHECK_NO_THROW(resp.fromData(zone, data));
     BOOST_CHECK_EQUAL(resp.getContentType(), NDNS_RESP); // by default NDNS_BLOB is enough
     BOOST_CHECK_GT(resp.getRrs().size(), 0);
-    Block block = resp.getRrs()[0]
-;
+    Block block = resp.getRrs()[0];
     block.parse();
     int ret = -1;
     BOOST_CHECK_EQUAL(block.type(), ndns::tlv::RrData);

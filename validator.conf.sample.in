@@ -11,10 +11,10 @@ rule
       type name
       hyper-relation
       {
-        k-regex ^(<>*)<KEY>(<>*)<><ID-CERT>$
+        k-regex ^(<>*)<NDNS>(<>*)<><ID-CERT>$
         k-expand \\1\\2
         h-relation @RELATION@ ; data is only allowed to be signed by the zone key
-        p-regex ^(<>*)[<KEY><NDNS>](<>*)<><>$
+        p-regex ^(<>*)<NDNS>(<>*)<><>$
         p-expand \\1\\2
       }
     }
