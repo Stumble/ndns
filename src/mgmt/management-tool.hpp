@@ -97,7 +97,7 @@ public:
    *  @param dskCertName if given, a zone will be created with this dsk certificate and provided
    *                     ksk certificate will be ignored
    */
-  void
+  Zone
   createZone(const Name& zoneName,
              const Name& parentZoneName,
              const time::seconds& cacheTtl = DEFAULT_CACHE_TTL,

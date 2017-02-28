@@ -120,7 +120,9 @@ BOOST_AUTO_TEST_CASE(KeyQuery)
     BOOST_CHECK_EQUAL(resp.getContentType(), NDNS_KEY);
   });
 
-  q.setRrLabel("/KEY/1");
+  Response certResp;
+  certResp.fromData(zone, m_cert);
+  q.setRrLabel(certResp.getRrLabel());
 
   face.receive(q.toInterest());
   run();
@@ -128,7 +130,7 @@ BOOST_AUTO_TEST_CASE(KeyQuery)
   BOOST_CHECK_EQUAL(nDataBack, 2);
 
   // explicit interest with correct version
-  face.receive(Interest("/test19/NDNS/KEY/1/ID-CERT/%FDd"));
+  face.receive(Interest(m_cert.getName()));
 
   face.onSendData.connectSingleShot([&] (const Data& data) {
     ++nDataBack;
@@ -142,7 +144,9 @@ BOOST_AUTO_TEST_CASE(KeyQuery)
   BOOST_CHECK_EQUAL(nDataBack, 3);
 
   // explicit interest with wrong version
-  face.receive(Interest("/test19/NDNS/KEY/1/ID-CERT/%FD010101010"));
+  Name wrongName = m_cert.getName().getPrefix(-1);
+  wrongName.appendVersion();
+  face.receive(Interest(wrongName));
 
   face.onSendData.connectSingleShot([&] (const Data& data) {
     ++nDataBack;

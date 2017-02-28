@@ -49,7 +49,7 @@ ManagementTool::ManagementTool(const std::string& dbFile, KeyChain& keyChain)
 {
 }
 
-void
+Zone
 ManagementTool::createZone(const Name &zoneName,
                            const Name& parentZoneName,
                            const time::seconds& cacheTtl,
@@ -147,6 +147,8 @@ ManagementTool::createZone(const Name &zoneName,
   NDNS_LOG_INFO("Start saving KSK and DSK's id to ZoneInfo");
   m_dbMgr.setZoneInfo(zone, "ksk", kskCert.getName().toUri());
   m_dbMgr.setZoneInfo(zone, "dsk", dskCert.getName().toUri());
+
+  return zone;
 }
 
 void

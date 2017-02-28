@@ -20,7 +20,7 @@
 #include "database-test-data.hpp"
 #include "daemon/rrset-factory.hpp"
 #include "util/cert-helper.hpp"
-
+#include "mgmt/management-tool.hpp"
 #include <ndn-cxx/security/verification-helpers.hpp>
 
 namespace ndn {
@@ -47,42 +47,29 @@ DbTestData::DbTestData()
 
   ndns::ValidatorNdns::VALIDATOR_CONF_FILE = TEST_CONFIG_PATH "/" "validator.conf";
 
-  // m_keyChain.deleteIdentity(TEST_IDENTITY_NAME);
   // m_certName = m_keyChain.createIdentity(TEST_IDENTITY_NAME);
-
-  // ndn::io::save(*(m_keyChain.getCertificate(m_certName)), TEST_CERT.string());
-  Name identityName = Name(TEST_IDENTITY_NAME).append("NDNS");
-  m_identity = this->addIdentity(identityName);
-  Key key = m_identity.getDefaultKey();
-  m_keyChain.deleteCertificate(key, key.getDefaultCertificate().getName());
-  m_cert = createCertificate(m_keyChain, key, key, "ID-CERT");
-  m_certName = m_cert.getName();
-  m_keyChain.addCertificate(key, m_cert);
-
-  saveIdentityCertificate(m_identity, TEST_CERT.string());
-
-  NDNS_LOG_INFO("save test root cert " << m_certName << " to: " << TEST_CERT.string());
-
-  BOOST_CHECK_GT(m_certName.size(), 0);
-  NDNS_LOG_TRACE("test certName: " << m_certName);
-
-  m_root = Zone(TEST_IDENTITY_NAME);
-  Name name(TEST_IDENTITY_NAME);
-  name.append("net");
-  m_net = Zone(name);
-  name.append("ndnsim");
-  m_ndnsim =Zone(name);
-
-  m_session.insert(m_root);
-  BOOST_CHECK_GT(m_root.getId(), 0);
-  m_session.insert(m_net);
-  BOOST_CHECK_GT(m_net.getId(), 0);
-  m_session.insert(m_ndnsim);
-  BOOST_CHECK_GT(m_ndnsim.getId(), 0);
+  ManagementTool tool(TEST_DATABASE.string(), m_keyChain);
+  Name testName(TEST_IDENTITY_NAME);
+  m_root = tool.createZone(testName, ROOT_ZONE);
+  Name netName = Name(testName).append("net");
+  m_net = tool.createZone(netName, testName);
+  Name ndnsimName = Name(netName).append("ndnsim");
+  m_ndnsim = tool.createZone(ndnsimName, netName);
 
   m_zones.push_back(m_root);
   m_zones.push_back(m_net);
   m_zones.push_back(m_ndnsim);
+
+  Name identityName = Name(testName).append("NDNS");
+  m_identity = getIdentity(m_keyChain, identityName);
+  m_certName = getDefaultCertificateNameForIdentity(m_keyChain, identityName);
+  m_cert = getCertificate(m_keyChain, identityName, m_certName);
+
+  ndn::io::save(m_cert, TEST_CERT.string());
+  NDNS_LOG_INFO("save test root cert " << m_certName << " to: " << TEST_CERT.string());
+
+  BOOST_CHECK_GT(m_certName.size(), 0);
+  NDNS_LOG_TRACE("test certName: " << m_certName);
 
   int certificateIndex = 0;
   function<void(const Name&,Zone&,const name::Component&)> addQueryRrset =
@@ -105,11 +92,6 @@ DbTestData::DbTestData()
 
     addRrset(zone, label, type, ttl, version, qType, contentType, os.str());
   };
-  addQueryRrset("/dsk-1", m_root, label::CERT_RR_TYPE);
-  addQueryRrset("/net/ksk-2", m_root, label::CERT_RR_TYPE);
-  addQueryRrset("/dsk-3", m_net, label::CERT_RR_TYPE);
-  addQueryRrset("/ndnsim/ksk-4", m_net, label::CERT_RR_TYPE);
-  addQueryRrset("/dsk-5", m_ndnsim, label::CERT_RR_TYPE);
 
   addQueryRrset("net", m_root, label::NS_RR_TYPE);
   addQueryRrset("ndnsim", m_net, label::NS_RR_TYPE);
