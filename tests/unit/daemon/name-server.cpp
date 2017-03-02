@@ -187,8 +187,6 @@ BOOST_AUTO_TEST_CASE(UpdateReplaceRr)
 
   bool hasDataBack = false;
 
-  std::cout << "????" << std::endl;
-
   face.onSendData.connectSingleShot([&] (const Data& data) {
     hasDataBack = true;
     NDNS_LOG_TRACE("get Data back");
@@ -207,9 +205,7 @@ BOOST_AUTO_TEST_CASE(UpdateReplaceRr)
     ret = readNonNegativeInteger(*val);
     BOOST_CHECK_EQUAL(ret, 0);
   });
-  std::cout << "sadkchhjshjd" << std::endl;
   face.receive(q.toInterest());
-  std::cout << "after sending" << std::endl;
   run();
 
   BOOST_CHECK_EQUAL(hasDataBack, true);

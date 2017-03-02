@@ -22,7 +22,7 @@
 
 #include "config.hpp"
 
-#include "ndn-cxx/data.hpp"
+#include <ndn-cxx/data.hpp>
 #include <ndn-cxx/security/v2/validator.hpp>
 #include <ndn-cxx/security/conf/common.hpp>
 

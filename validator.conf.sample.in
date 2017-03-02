@@ -5,17 +5,17 @@ rule
   checker
   {
     type customized
-    sig-type rsa-sha256
+    sig-type ecdsa-sha256
     key-locator
     {
       type name
       hyper-relation
       {
-        k-regex ^(<>*)<NDNS>(<>*)<><ID-CERT>$
-        k-expand \\1\\2
+        k-regex ^([^<NDNS>]*)<NDNS><KEY><>$
+        k-expand \\1
         h-relation @RELATION@ ; data is only allowed to be signed by the zone key
-        p-regex ^(<>*)<NDNS>(<>*)<><>$
-        p-expand \\1\\2
+        p-regex ^([^<NDNS>]*)<NDNS>(<>*)<><>$
+        p-expand \\1
       }
     }
   }
