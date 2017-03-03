@@ -376,39 +376,6 @@ public:
 
 BOOST_FIXTURE_TEST_CASE(UpdateValidatorFetchCert, NameServerFixture2)
 {
-  Identity zoneIdentity = m_keyChain.createIdentity(TEST_IDENTITY_NAME);
-  Key dsk = m_keyChain.createKey(zoneIdentity);
-
-  Name dskCertName = dsk.getName();
-  dskCertName
-    .append("ID-CERT")
-    .appendVersion();
-  Certificate dskCert;
-  dskCert.setName(dskCertName);
-  dskCert.setContentType(ndn::tlv::ContentType_Key);
-  dskCert.setFreshnessPeriod(time::hours(1));
-  dskCert.setContent(dsk.getPublicKey().buf(), dsk.getPublicKey().size());
-  SignatureInfo info;
-  info.setValidityPeriod(security::ValidityPeriod(time::system_clock::now(),
-                                                  time::system_clock::now() + time::days(365)));
-
-  m_keyChain.sign(dskCert, security::signingByCertificate(m_cert));
-  m_keyChain.setDefaultCertificate(dsk, dskCert);
-
-  NDNS_LOG_TRACE("KeyChain: add cert: " << dskCert.getName() << ". KeyLocator: "
-                 << dskCert.getSignature().getKeyLocator().getName());
-
-  Rrset rrset(&m_root);
-  Name label = dskCert.getName().getPrefix(-2).getSubName(m_root.getName().size() + 1);
-  rrset.setLabel(label);
-  rrset.setType(label::CERT_RR_TYPE);
-  rrset.setVersion(dskCert.getName().get(-1));
-  rrset.setTtl(m_root.getTtl());
-  rrset.setData(dskCert.wireEncode());
-  m_session.insert(rrset);
-  NDNS_LOG_TRACE("DB: zone " << m_root << " add a ID-CERT RR with name="
-                 << dskCert.getName() << " rrLabel=" << label);
-
   Response re;
   re.setZone(zone);
   re.setQueryType(label::NDNS_ITERATIVE_QUERY);
@@ -422,7 +389,7 @@ BOOST_FIXTURE_TEST_CASE(UpdateValidatorFetchCert, NameServerFixture2)
   re.addRr(makeBinaryBlock(ndns::tlv::RrData, str.c_str(), str.size()));
 
   shared_ptr<Data> data = re.toData();
-  m_keyChain.sign(*data, security::signingByCertificate(dskCert));
+  m_keyChain.sign(*data, security::signingByCertificate(m_cert));
 
   Query q(Name(zone), ndns::label::NDNS_ITERATIVE_QUERY);
   const Block& block = data->wireEncode();
@@ -434,7 +401,7 @@ BOOST_FIXTURE_TEST_CASE(UpdateValidatorFetchCert, NameServerFixture2)
 
   bool hasDataBack = false;
 
-  shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<KEY>(<>+)<ID-CERT><>");
+  shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<NDNS><KEY>(<>+)<ID-CERT><>");
   face.onSendData.connect([&] (const Data& data) {
     if (regex->match(data.getName())) {
       shared_ptr<const Data> d = data.shared_from_this();

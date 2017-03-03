@@ -84,18 +84,6 @@ public:
     return m_ndnsPrefix;
   }
 
-  const Name&
-  getKeyPrefix() const
-  {
-    return m_keyPrefix;
-  }
-
-  void
-  setKeyPrefix(const Name& keyPrefix)
-  {
-    m_keyPrefix = keyPrefix;
-  }
-
   const Zone&
   getZone() const
   {
@@ -123,7 +111,6 @@ private:
   DbMgr& m_dbMgr;
 
   Name m_ndnsPrefix;
-  Name m_keyPrefix;
   Name m_certName;
 
   time::milliseconds m_contentFreshness;
