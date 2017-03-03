@@ -24,7 +24,6 @@
 
 #include <boost/lexical_cast.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
-// #include <ndn-cxx/security/validator.hpp>
 
 namespace ndn {
 namespace ndns {
@@ -47,7 +46,9 @@ public:
     zone1.setTtl(time::seconds(4600));
     BOOST_CHECK_NO_THROW(m_session.insert(zone1));
 
-    m_identity = this->addIdentity(TEST_IDENTITY_NAME);
+    Name identityName = Name(TEST_IDENTITY_NAME).append("NDNS");
+
+    m_identity = this->addIdentity(identityName);
     m_cert = m_identity.getDefaultKey().getDefaultCertificate();
     m_certName = m_cert.getName();
     saveIdentityCertificate(m_identity, TEST_CERT.string());
@@ -86,7 +87,7 @@ BOOST_AUTO_TEST_CASE(CheckZoneKey)
 
   // cert throws check: !matchCertificate
   RrsetFactory rf2(TEST_DATABASE2, m_zoneName, m_keyChain, "wrongCert");
-  BOOST_CHECK_THROW(rf2.checkZoneKey(), ndns::RrsetFactory::Error);
+  BOOST_CHECK_THROW(rf2.checkZoneKey(), std::runtime_error);
 
   RrsetFactory rf3(TEST_DATABASE2, m_zoneName, m_keyChain, m_certName);
   BOOST_CHECK_NO_THROW(rf3.checkZoneKey());
