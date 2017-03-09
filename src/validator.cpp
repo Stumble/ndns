@@ -24,6 +24,8 @@
 #include <ndn-cxx/security/v2/validation-policy-config.hpp>
 #include <ndn-cxx/security/v2/certificate-fetcher-from-network.hpp>
 
+#include <boost/algorithm/string/replace.hpp>
+
 namespace ndn {
 namespace ndns {
 
@@ -42,44 +44,71 @@ ValidatorNdns::ValidatorNdns(Face& face, const std::string& confFile /* = VALIDA
   }
   catch (std::exception&) {
     std::string config =
-      "rule                                                                       \n"
-      "{                                                                          \n"
-      "  id \"NDNS Validator\"                                                    \n"
-      "  for data                                                                 \n"
-      "  checker                                                                  \n"
-      "  {                                                                        \n"
-      "    type customized                                                        \n"
-      "    sig-type ecdsa-sha256                                                  \n"
-      "    key-locator                                                            \n"
-      "    {                                                                      \n"
-      "      type name                                                            \n"
-      "      hyper-relation                                                       \n"
-      "      {                                                                    \n"
-      "        k-regex ^([^<NDNS>]*)<NDNS><KEY><>$                                \n"
-      "        k-expand \\\\1                                                     \n"
-      "        h-relation is-prefix-of                                            \n"
-      "        p-regex ^([^<NDNS>]*)<NDNS>(<>*)<><>$                              \n"
-      "        p-expand \\\\1                                                     \n"
-      "      }                                                                    \n"
-      "    }                                                                      \n"
-      "  }                                                                        \n"
-      "}                                                                          \n"
-      "                                                                           \n"
-      "                                                                           \n"
-      "trust-anchor                                                               \n"
-      "{                                                                          \n"
-      "  type file                                                                \n"
-      "  file-name \""
-      ;
+R"VALUE(
+rule
+{
+  id "NDNS KEY signing rule"
+  for data
+  filter
+  {
+    type name
+    regex ^([^<NDNS>]*)<NDNS><KEY><><><>$
+  }
+  checker
+  {
+    type customized
+    sig-type ecdsa-sha256
+    key-locator
+    {
+      type name
+      hyper-relation
+      {
+        k-regex ^([^<NDNS>]*)<NDNS>(<>*)<KEY><>$
+        k-expand \\1\\2
+        h-relation is-prefix-of ; ksk should be signed by dkey in parent zone
+        p-regex ^([^<NDNS>]*)<NDNS><KEY><><><>$
+        p-expand \\1
+      }
+    }
+  }
+}
 
-    config += DEFAULT_CONFIG_PATH "/" "anchors/root.cert";
+rule
+{
+  id "NDNS data signing rule"
+  for data
+  filter
+  {
+    type name
+    regex ^([^<NDNS>]*)<NDNS>(<>*)<><>$
+  }
+  checker
+  {
+    type customized
+    sig-type ecdsa-sha256
+    key-locator
+    {
+      type name
+      hyper-relation
+      {
+        k-regex ^([^<NDNS>]*)<NDNS><KEY><>$
+        k-expand \\1
+        h-relation equal; data should be signed by dsk
+        p-regex ^([^<NDNS>]*)<NDNS>(<>*)<><>$
+        p-expand \\1
+      }
+    }
+  }
+}
 
-    config +=
-      "\"                                                                         \n"
-      "}                                                                          \n"
-      "                                                                           \n"
-      ;
+trust-anchor
+{
+  type file
+  file-name ANCHORFILE
+}
+)VALUE";
 
+    boost::replace_last(config, "ANCHORFILE",  DEFAULT_CONFIG_PATH "/" "anchors/root.cert");
     policyConfig.load(config, "embededConf");
     NDNS_LOG_TRACE("Validator loads embedded configuration with anchors path: anchors/root.cert");
   }
