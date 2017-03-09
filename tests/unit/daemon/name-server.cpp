@@ -270,7 +270,7 @@ BOOST_AUTO_TEST_CASE(UpdateValidatorCannotFetchCert)
 
   Name dskCertName = dsk.getName();
   dskCertName
-    .append("ID-CERT")
+    .append("CERT")
     .appendVersion();
   Certificate dskCert;
   dskCert.setName(dskCertName);
@@ -295,7 +295,7 @@ BOOST_AUTO_TEST_CASE(UpdateValidatorCannotFetchCert)
   rrset.setTtl(m_root.getTtl());
   rrset.setData(dskCert.wireEncode());
   m_session.insert(rrset);
-  NDNS_LOG_TRACE("DB: zone " << m_root << " add a ID-CERT RR with name="
+  NDNS_LOG_TRACE("DB: zone " << m_root << " add a CERT RR with name="
                  << dskCert.getName() << " rrLabel=" << label);
 
   Response re;
@@ -401,7 +401,7 @@ BOOST_FIXTURE_TEST_CASE(UpdateValidatorFetchCert, NameServerFixture2)
 
   bool hasDataBack = false;
 
-  shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<NDNS><KEY>(<>+)<ID-CERT><>");
+  shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<NDNS><KEY>(<>+)<CERT><>");
   face.onSendData.connect([&] (const Data& data) {
     if (regex->match(data.getName())) {
       shared_ptr<const Data> d = data.shared_from_this();

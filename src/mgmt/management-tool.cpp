@@ -175,7 +175,7 @@ ManagementTool::exportCertificate(const Name& certName, const std::string& outFi
 {
   // only search in local NDNS database
   Certificate cert;
-  shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<NDNS>(<>+)<ID-CERT><>");
+  shared_ptr<Regex> regex = make_shared<Regex>("(<>*)<NDNS>(<>+)<CERT><>");
   if (!regex->match(certName)) {
     throw Error("Certificate name is illegal");
     return;
@@ -565,7 +565,7 @@ ManagementTool::addIdCert(Zone& zone, const Certificate& cert,
   rrsetAuth.setVersion(authData.getName().get(-1));
 
   if (m_dbMgr.find(rrsetKey)) {
-    throw Error("ID-CERT with label=" + label.toUri() +
+    throw Error("CERT with label=" + label.toUri() +
                 " is already presented in local NDNS databse");
   }
 

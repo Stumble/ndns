@@ -53,7 +53,7 @@ main(int argc, char* argv[])
     po::options_description config("Zone Options");
     config.add_options()
       ("cacheTtl,a", po::value<int>(&cacheTtlInt), "Set ttl of records of the zone and its "
-        "DSK ID-CERT. Default: 3600 seconds")
+        "DSK CERT. Default: 3600 seconds")
       ("certTtl,e", po::value<int>(&certTtlInt), "Set ttl of DSK and KSK certificates. "
         "Default: 365 days")
       ("parent,p", po::value<std::string>(&parentStr), "Set the parent zone of the zone to be "

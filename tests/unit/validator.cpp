@@ -72,8 +72,8 @@ public:
     Name defaultDskCert = dsk.getDefaultCertificate().getName();
     m_keyChain.deleteCertificate(dsk, defaultDskCert);
 
-    auto kskCert = createCertificate(m_keyChain, ksk, parentKey, "ID-CERT", time::days(100));
-    auto dskCert = createCertificate(m_keyChain, dsk, ksk, "ID-CERT", time::days(100));
+    auto kskCert = createCertificate(m_keyChain, ksk, parentKey, "CERT", time::days(100));
+    auto dskCert = createCertificate(m_keyChain, dsk, ksk, "CERT", time::days(100));
 
     m_keyChain.addCertificate(ksk, kskCert);
     m_keyChain.addCertificate(dsk, dskCert);
@@ -166,7 +166,7 @@ BOOST_FIXTURE_TEST_CASE(Basic, Fixture)
     .append(m_testId2)
     .append("NDNS")
     .append("rrLabel")
-    .append("ID-CERT")
+    .append("CERT")
     .appendVersion();
   data = make_shared<Data>(dataName);
   m_keyChain.sign(*data, signingByKey(m_dsk3)); // key's owner's name is longer than data owner's
@@ -192,7 +192,7 @@ BOOST_FIXTURE_TEST_CASE(Basic, Fixture)
     .append(m_testId2)
     .append("KEY")
     .append("rrLabel")
-    .append("ID-CERT")
+    .append("CERT")
     .appendVersion();
   data = make_shared<Data>(dataName);
   m_keyChain.sign(*data, signingByKey(m_randomDsk));

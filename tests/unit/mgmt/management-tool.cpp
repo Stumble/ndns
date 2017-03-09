@@ -125,28 +125,28 @@ public:
     Identity root = addIdentity("NDNS");
     Key ksk = root.getDefaultKey();
     m_keyChain.deleteCertificate(ksk, ksk.getDefaultCertificate().getName());
-    Certificate kskCert = createCertificate(m_keyChain, ksk, ksk, "ID-CERT");
+    Certificate kskCert = createCertificate(m_keyChain, ksk, ksk, "CERT");
     m_keyChain.addCertificate(ksk, kskCert);
     rootKsk = kskCert.getName();
 
     Key dsk = m_keyChain.createKey(root);
     // replace rootDsk's default cert with ksk-signing cert
     m_keyChain.deleteCertificate(dsk, dsk.getDefaultCertificate().getName());
-    Certificate dskCert = createCertificate(m_keyChain, dsk, ksk, "ID-CERT");
+    Certificate dskCert = createCertificate(m_keyChain, dsk, ksk, "CERT");
     m_keyChain.addCertificate(dsk, dskCert);
     rootDsk = dskCert.getName();
 
     Identity other = addIdentity("/ndns-test/NDNS");
     Key otherKskKey = other.getDefaultKey();
     m_keyChain.deleteCertificate(otherKskKey, otherKskKey.getDefaultCertificate().getName());
-    Certificate otherKskCert = createCertificate(m_keyChain, otherKskKey, otherKskKey, "ID-CERT");
+    Certificate otherKskCert = createCertificate(m_keyChain, otherKskKey, otherKskKey, "CERT");
     m_keyChain.addCertificate(otherKskKey, otherKskCert);
     otherKsk  = otherKskCert.getName();
 
     // replace rootDsk's default cert with ksk-signing cert
     Key otherDskKey = m_keyChain.createKey(other);
     m_keyChain.deleteCertificate(otherDskKey, otherDskKey.getDefaultCertificate().getName());
-    Certificate otherDskCert = createCertificate(m_keyChain, otherDskKey, otherKskKey, "ID-CERT");
+    Certificate otherDskCert = createCertificate(m_keyChain, otherDskKey, otherKskKey, "CERT");
     m_keyChain.addCertificate(otherDskKey, otherDskCert);
     otherDsk = otherDskCert.getName();
   }
@@ -869,24 +869,24 @@ BOOST_AUTO_TEST_CASE(ListZone)
   std::string expectedValue =
     R"VALUE(; Zone /ndns-test
 
-; rrset=/label1 type=NS version=%FDd signed-by=/ndns-test/KEY/dsk-1416974006659/ID-CERT
+; rrset=/label1 type=NS version=%FDd signed-by=/ndns-test/KEY/dsk-1416974006659/CERT
 /label1             10  NS       10,/get/link;
 
-; rrset=/label2 type=NS version=%FD%00%01%86%A0 signed-by=/ndns-test/KEY/dsk-1416974006659/ID-CERT
+; rrset=/label2 type=NS version=%FD%00%01%86%A0 signed-by=/ndns-test/KEY/dsk-1416974006659/CERT
 /label2             10  NS       NDNS-Auth
 
-; rrset=/label2 type=TXT version=%FD%00%09%FB%F1 signed-by=/ndns-test/KEY/dsk-1416974006659/ID-CERT
+; rrset=/label2 type=TXT version=%FD%00%09%FB%F1 signed-by=/ndns-test/KEY/dsk-1416974006659/CERT
 /label2             10  TXT      First RR
 /label2             10  TXT      Second RR
 /label2             10  TXT      Last RR
 
-; rrset=/label3 type=TXT version=%FD%0D%05 signed-by=/ndns-test/KEY/dsk-1416974006659/ID-CERT
+; rrset=/label3 type=TXT version=%FD%0D%05 signed-by=/ndns-test/KEY/dsk-1416974006659/CERT
 /label3             10  TXT      Hello
 /label3             10  TXT      World
 
-/dsk-1416974006659  10  ID-CERT  ; content-type=KEY version=%FD%00%00%01I%EA%3Bz%0E signed-by=/ndns-test/KEY/ksk-1416974006577/ID-CERT
+/dsk-1416974006659  10  CERT  ; content-type=KEY version=%FD%00%00%01I%EA%3Bz%0E signed-by=/ndns-test/KEY/ksk-1416974006577/CERT
 ; Certificate name:
-;   /ndns-test/KEY/dsk-1416974006659/ID-CERT/%FD%00%00%01I%EA%3Bz%0E
+;   /ndns-test/KEY/dsk-1416974006659/CERT/%FD%00%00%01I%EA%3Bz%0E
 ; Validity:
 ;   NotBefore: 19700101T000000
 ;   NotAfter: 20380119T031408
