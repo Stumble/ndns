@@ -37,6 +37,7 @@ public:
   static const boost::filesystem::path TEST_DATABASE;
   static const Name TEST_IDENTITY_NAME;
   static const boost::filesystem::path TEST_CERT;
+  static const boost::filesystem::path TEST_DKEY_CERT;
 
   DbTestData();
 
@@ -60,7 +61,7 @@ public:
   std::vector<Rrset> m_rrsets;
   std::vector<Link>  m_links;
 
-  Zone m_root;
+  Zone m_test;
   Zone m_net;
   Zone m_ndnsim;
   DbMgr m_session;
