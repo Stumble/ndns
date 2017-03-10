@@ -38,6 +38,7 @@ main(int argc, char* argv[])
   string parentStr;
   string dskStr;
   string kskStr;
+  string dkeyStr;
   string db;
   try {
     namespace po = boost::program_options;
@@ -61,6 +62,8 @@ main(int argc, char* argv[])
       ("dsk,d", po::value<std::string>(&dskStr), "Set the name of DSK's certificate, "
         "Default: generate new key and certificate")
       ("ksk,k", po::value<std::string>(&kskStr), "Set the name of KSK's certificate, "
+        "Default: generate new key and certificate")
+      ("dkey,g", po::value<std::string>(&dkeyStr), "Set the name of DKEY's certificate, "
         "Default: generate new key and certificate")
       ;
 
@@ -87,7 +90,7 @@ main(int argc, char* argv[])
 
     if (vm.count("help")) {
       std::cout << "Usage: ndns-create-zone [-b db] zone [-a cacheTtl] [-e certTtl] [-p parent] "
-        "[-d dskCert] [-k kskCert]" << std::endl;
+        "[-d dskCert] [-k kskCert] [-g dkeyCert]" << std::endl;
       std::cout << options << std::endl;
       return 0;
     }
@@ -110,6 +113,7 @@ main(int argc, char* argv[])
 
     Name ksk(kskStr);
     Name dsk(dskStr);
+    Name dkey(dkeyStr);
 
     time::seconds cacheTtl;
     time::seconds certTtl;
@@ -125,7 +129,10 @@ main(int argc, char* argv[])
 
     ndn::ndns::KeyChain keyChain;
     ndn::ndns::ManagementTool tool(db, keyChain);
-    tool.createZone(zone, parent, cacheTtl, certTtl, ksk, dsk);
+    ndn::ndns::Zone createdZone = tool.createZone(zone, parent, cacheTtl, certTtl, ksk, dsk, dkey);
+    ndn::security::v2::Certificate dkeyCert = tool.getZoneDkey(createdZone);
+    std::cout << "Generated DKEY " << dkeyCert.getName() << std::endl;
+    ndn::io::save(dkeyCert, std::cout);
   }
   catch (const std::exception& ex) {
     std::cerr << "Error: " << ex.what() << std::endl;

@@ -103,7 +103,8 @@ public:
              const time::seconds& cacheTtl = DEFAULT_CACHE_TTL,
              const time::seconds& certValidity = DEFAULT_CERT_TTL,
              const Name& kskCertName = DEFAULT_CERT,
-             const Name& dskCertName = DEFAULT_CERT);
+             const Name& dskCertName = DEFAULT_CERT,
+             const Name& dkeyCertName = DEFAULT_CERT);
 
   /** @brief Delete a Zone according to a given name.
    *
@@ -203,6 +204,9 @@ public:
            const Name& label,
            const name::Component& type,
            std::ostream& os);
+
+  Certificate
+  getZoneDkey(Zone& zone);
 
   /** @brief generates an output like DNS zone file. Reference:
    *  http://en.wikipedia.org/wiki/Zone_file
