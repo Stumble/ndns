@@ -373,7 +373,7 @@ ManagementTool::addRrsetFromFile(const Name& zoneName,
   rrset.setData(data->wireEncode());
 
   checkRrsetVersion(rrset);
-  NDNS_LOG_INFO("Added " << rrset);
+  NDNS_LOG_INFO("Adding rrset from file " << rrset);
   m_dbMgr.insert(rrset);
 }
 

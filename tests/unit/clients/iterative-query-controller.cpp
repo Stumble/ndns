@@ -36,7 +36,7 @@ public:
     : producerFace(io, {false, true})
     , consumerFace(io, {true, true})
     , validator(producerFace)
-    , top(m_root.getName(), m_certName, producerFace, m_session, m_keyChain, validator)
+    , top(m_test.getName(), m_certName, producerFace, m_session, m_keyChain, validator)
     , net(m_net.getName(), m_certName, producerFace, m_session, m_keyChain, validator)
     , ndnsim(m_ndnsim.getName(), m_certName, producerFace, m_session, m_keyChain, validator)
   {
