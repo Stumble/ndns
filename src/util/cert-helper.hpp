@@ -62,6 +62,25 @@ getCertificate(const KeyChain& keyChain,
   return Certificate();
 }
 
+inline Name
+getIdentityNameFromCert(const Name& certName)
+{
+  static Name::Component keyComp("KEY");
+  for (size_t i = 0; i < certName.size(); ++i) {
+    if (certName.get(i) == keyComp) {
+      return certName.getPrefix(i);
+    }
+  }
+  throw std::runtime_error(certName.toUri() + " is not a legal cert name");
+}
+
+inline Certificate
+getCertificate(const KeyChain& keyChain,
+               const Name& certName)
+{
+  Name identityName = getIdentityNameFromCert(certName);
+  return getCertificate(keyChain, identityName, certName);
+}
 
 inline const Name&
 getDefaultKeyNameForIdentity(const KeyChain& keyChain, const Name& identityName)
