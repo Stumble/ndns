@@ -160,7 +160,7 @@ public:
   {
     Zone zone(zoneName);
     std::vector<Name> certs;
-    std::map<std::string, std::string> zoneInfo = m_dbMgr.getZoneInfo(zone);
+    std::map<std::string, Block> zoneInfo = m_dbMgr.getZoneInfo(zone);
     // ksk are always the first key
     certs.push_back(Name(zoneInfo["ksk"]));
     certs.push_back(Name(zoneInfo["dsk"]));
