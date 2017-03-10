@@ -35,9 +35,16 @@ public:
   static bool
   doesIdentityExist(const KeyChain& keyChain, const Name& identityName);
 
+  static Name
+  getIdentityNameFromCert(const Name& certName);
+
   static Certificate
   getCertificate(const KeyChain& keyChain,
                  const Name& identity,
+                 const Name& certName);
+
+  static Certificate
+  getCertificate(const KeyChain& keyChain,
                  const Name& certName);
 
   static const Name&
@@ -53,6 +60,7 @@ public:
                     const std::string& issuer,
                     const time::seconds& certValidity = time::days(10));
 };
+
 
 } // namespace ndns
 } // namespace ndn

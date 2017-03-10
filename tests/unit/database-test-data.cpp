@@ -33,6 +33,8 @@ const boost::filesystem::path DbTestData::TEST_DATABASE = TEST_CONFIG_PATH "/" "
 const Name DbTestData::TEST_IDENTITY_NAME("/test19");
 const boost::filesystem::path DbTestData::TEST_CERT =
   TEST_CONFIG_PATH "/" "anchors/root.cert";
+const boost::filesystem::path DbTestData::TEST_DKEY_CERT =
+  TEST_CONFIG_PATH "/" "dkey.cert";
 
 DbTestData::PreviousStateCleaner::PreviousStateCleaner()
 {
@@ -47,16 +49,31 @@ DbTestData::DbTestData()
 
   ndns::ValidatorNdns::VALIDATOR_CONF_FILE = TEST_CONFIG_PATH "/" "validator.conf";
 
-  // m_certName = m_keyChain.createIdentity(TEST_IDENTITY_NAME);
   ManagementTool tool(TEST_DATABASE.string(), m_keyChain);
+  // this is how DKEY is added to parent zone in real world.
+  auto addDkeyCertToParent = [&tool](Zone& dkeyFrom, Zone& dkeyTo)->void{
+    Certificate dkeyCert;
+    dkeyCert = tool.getZoneDkey(dkeyFrom);
+    ndn::io::save(dkeyCert, TEST_DKEY_CERT.string());
+    tool.addRrsetFromFile(dkeyTo.getName(),
+                          TEST_DKEY_CERT.string(),
+                          DEFAULT_RR_TTL,
+                          DEFAULT_CERT,
+                          ndn::io::BASE64,
+                          true);
+  };
+
   Name testName(TEST_IDENTITY_NAME);
-  m_root = tool.createZone(testName, ROOT_ZONE);
+  m_test = tool.createZone(testName, ROOT_ZONE);
+  // m_test's DKEY is not added to parent zone
   Name netName = Name(testName).append("net");
   m_net = tool.createZone(netName, testName);
+  addDkeyCertToParent(m_net, m_test);
   Name ndnsimName = Name(netName).append("ndnsim");
   m_ndnsim = tool.createZone(ndnsimName, netName);
+  addDkeyCertToParent(m_ndnsim, m_net);
 
-  m_zones.push_back(m_root);
+  m_zones.push_back(m_test);
   m_zones.push_back(m_net);
   m_zones.push_back(m_ndnsim);
 
@@ -93,7 +110,7 @@ DbTestData::DbTestData()
     addRrset(zone, label, type, ttl, version, qType, contentType, os.str());
   };
 
-  addQueryRrset("net", m_root, label::NS_RR_TYPE);
+  addQueryRrset("net", m_test, label::NS_RR_TYPE);
   addQueryRrset("ndnsim", m_net, label::NS_RR_TYPE);
   addQueryRrset("www", m_ndnsim, label::TXT_RR_TYPE);
   addQueryRrset("doc/www", m_ndnsim, label::TXT_RR_TYPE);

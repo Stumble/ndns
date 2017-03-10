@@ -38,7 +38,7 @@ class NameServerFixture : public DbTestData
 public:
   NameServerFixture()
     : face({false, true})
-    , zone(m_root.getName())
+    , zone(m_test.getName())
     , validator(face)
     , server(zone, m_certName, face, m_session, m_keyChain, validator)
   {
@@ -287,15 +287,15 @@ BOOST_AUTO_TEST_CASE(UpdateValidatorCannotFetchCert)
   NDNS_LOG_TRACE("KeyChain: add cert: " << dskCert.getName() << ". KeyLocator: "
                  << dskCert.getSignature().getKeyLocator().getName());
 
-  Rrset rrset(&m_root);
-  Name label = dskCert.getName().getPrefix(-2).getSubName(m_root.getName().size() + 1);
+  Rrset rrset(&m_test);
+  Name label = dskCert.getName().getPrefix(-2).getSubName(m_test.getName().size() + 1);
   rrset.setLabel(label);
   rrset.setType(label::CERT_RR_TYPE);
   rrset.setVersion(dskCert.getName().get(-1));
-  rrset.setTtl(m_root.getTtl());
+  rrset.setTtl(m_test.getTtl());
   rrset.setData(dskCert.wireEncode());
   m_session.insert(rrset);
-  NDNS_LOG_TRACE("DB: zone " << m_root << " add a CERT RR with name="
+  NDNS_LOG_TRACE("DB: zone " << m_test << " add a CERT RR with name="
                  << dskCert.getName() << " rrLabel=" << label);
 
   Response re;
@@ -341,7 +341,7 @@ public:
   NameServerFixture2()
     : face(io, m_keyChain, {false, true})
     , validatorFace(io, m_keyChain, {false, true})
-    , zone(m_root.getName())
+    , zone(m_test.getName())
     , validator(validatorFace) // different face for validator
     , server(zone, m_certName, face, m_session, m_keyChain, validator)
   {

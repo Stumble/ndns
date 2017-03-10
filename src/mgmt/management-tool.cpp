@@ -55,7 +55,8 @@ ManagementTool::createZone(const Name &zoneName,
                            const time::seconds& cacheTtl,
                            const time::seconds& certValidity,
                            const Name& kskCertName,
-                           const Name& dskCertName)
+                           const Name& dskCertName,
+                           const Name& dkeyCertName)
 {
   bool isRoot = zoneName == ROOT_ZONE;
   Name zoneIdentityName = Name(zoneName).append(label::NDNS_CERT_QUERY);
@@ -86,27 +87,52 @@ ManagementTool::createZone(const Name &zoneName,
     }
   }
 
-  if (kskCertName == DEFAULT_CERT && isRoot) {
-    throw Error("Cannot generate KSK for root zone");
+  if (dkeyCertName == DEFAULT_CERT && isRoot) {
+    throw Error("Cannot generate dkey for root zone");
   }
 
   //first generate KSK and DSK to the keyChain system, and add DSK as default
   NDNS_LOG_INFO("Start generating KSK and DSK and their corresponding certificates");
   // generate KSK
 
+  Name dkeyIdentityName;
+  if (dkeyCertName == DEFAULT_CERT) {
+    dkeyIdentityName = Name(parentZoneName).append(label::NDNS_CERT_QUERY)
+      .append(zoneName.getSubName(parentZoneName.size()));
+  } else {
+    dkeyIdentityName = CertHelper::getIdentityNameFromCert(dkeyCertName);
+  }
+
   Name dskName;
   Key ksk;
   Key dsk;
+  Key dkey;
   Certificate dskCert;
   Certificate kskCert;
+  Certificate dkeyCert;
   Identity zoneIdentity = m_keyChain.createIdentity(zoneIdentityName);
+  Identity dkeyIdentity = m_keyChain.createIdentity(dkeyIdentityName);
+
+  if (dkeyCertName == DEFAULT_CERT) {
+    dkey = m_keyChain.createKey(dkeyIdentity);
+    m_keyChain.deleteCertificate(dkey, dkey.getDefaultCertificate().getName());
+
+    dkeyCert = CertHelper::createCertificate(m_keyChain, dkey, dkey, label::CERT_RR_TYPE.toUri(), time::days(90));
+    dkeyCert.setFreshnessPeriod(cacheTtl);
+    m_keyChain.addCertificate(dkey, dkeyCert);
+    NDNS_LOG_INFO("Generated DKEY: " << dkeyCert.getName());
+
+  } else {
+    dkeyCert = CertHelper::getCertificate(m_keyChain, dkeyIdentityName, dkeyCertName);
+    dkey = dkeyIdentity.getKey(dkeyCert.getKeyName());
+  }
 
   if (kskCertName == DEFAULT_CERT) {
     ksk = m_keyChain.createKey(zoneIdentity);
     // delete automatically generated certificates,
     // because its issue is 'self' instead of CERT_RR_TYPE
     m_keyChain.deleteCertificate(ksk, ksk.getDefaultCertificate().getName());
-    kskCert = CertHelper::createCertificate(m_keyChain, ksk, ksk, label::CERT_RR_TYPE.toUri(), time::days(90));
+    kskCert = CertHelper::createCertificate(m_keyChain, ksk, dkey, label::CERT_RR_TYPE.toUri(), time::days(90));
     kskCert.setFreshnessPeriod(cacheTtl);
     m_keyChain.addCertificate(ksk, kskCert);
     NDNS_LOG_INFO("Generated KSK: " << kskCert.getName());
@@ -148,8 +174,8 @@ ManagementTool::createZone(const Name &zoneName,
   m_dbMgr.setZoneInfo(zone, "ksk", kskCert.wireEncode());
   m_dbMgr.setZoneInfo(zone, "dsk", dskCert.wireEncode());
 
-  // TODO: add D-key to zone
-  // m_dbMgr.setZoneInfo
+  NDNS_LOG_INFO("Start saving DKEY certificate id to ZoneInfo");
+  m_dbMgr.setZoneInfo(zone, "dkey", dkeyCert.wireEncode());
 
   return zone;
 }
@@ -347,8 +373,15 @@ ManagementTool::addRrsetFromFile(const Name& zoneName,
   rrset.setData(data->wireEncode());
 
   checkRrsetVersion(rrset);
-  NDNS_LOG_INFO("Added " << rrset);
+  NDNS_LOG_INFO("Adding rrset from file " << rrset);
   m_dbMgr.insert(rrset);
+}
+
+Certificate
+ManagementTool::getZoneDkey(Zone& zone)
+{
+  std::map<std::string, Block> zoneInfo = m_dbMgr.getZoneInfo(zone);
+  return Certificate(zoneInfo["dkey"]);
 }
 
 void
@@ -550,23 +583,6 @@ ManagementTool::addIdCert(Zone& zone, const Certificate& cert,
   rrsetKey.setVersion(cert.getName().get(-1));
   rrsetKey.setData(cert.wireEncode());
 
-  Rrset rrsetAuth(&zone);
-  Name authLabel(label.getPrefix(1));
-  Name authDataName = Name(zone.getName()).append(label::NDNS_ITERATIVE_QUERY)
-                                          .append(authLabel)
-                                          .append(label::NS_RR_TYPE)
-                                          .appendVersion();
-  Data authData(authDataName);
-  authData.setContentType(NDNS_AUTH);
-  authData.setFreshnessPeriod(ttl);
-  m_keyChain.sign(authData, signingByCertificate(dskCert));
-
-  rrsetAuth.setData(authData.wireEncode());
-  rrsetAuth.setLabel(authLabel);
-  rrsetAuth.setType(label::NS_RR_TYPE);
-  rrsetAuth.setTtl(ttl);
-  rrsetAuth.setVersion(authData.getName().get(-1));
-
   if (m_dbMgr.find(rrsetKey)) {
     throw Error("CERT with label=" + label.toUri() +
                 " is already presented in local NDNS databse");
@@ -575,10 +591,6 @@ ManagementTool::addIdCert(Zone& zone, const Certificate& cert,
   m_dbMgr.insert(rrsetKey);
   NDNS_LOG_INFO("Add rrset with zone-id: " << zone.getId() << " label: " << label << " type: "
                 << label::CERT_RR_TYPE);
-
-  m_dbMgr.insert(rrsetAuth);
-  NDNS_LOG_INFO("Add rrset with zone-id: " << zone.getId() << " label: " << authLabel << " type: "
-                << label::NS_RR_TYPE);
 }
 
 void

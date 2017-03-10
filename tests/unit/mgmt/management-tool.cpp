@@ -149,6 +149,10 @@ public:
     Certificate otherDskCert = CertHelper::createCertificate(m_keyChain, otherDskKey, otherKskKey, "CERT");
     m_keyChain.addCertificate(otherDskKey, otherDskCert);
     otherDsk = otherDskCert.getName();
+
+    Certificate rootDkeyCert = CertHelper::createCertificate(m_keyChain, otherDskKey, otherKskKey, "CERT");
+    m_keyChain.addCertificate(otherDskKey, rootDkeyCert);
+    rootDkey = rootDkeyCert.getName();
   }
 
   ~ManagementToolFixture()
@@ -213,6 +217,14 @@ public:
     return cert;
   }
 
+  Certificate
+  findDkeyFromDb(const Name& zoneName)
+  {
+    Zone zone(zoneName);
+    std::map<std::string, Block> zoneInfo = m_dbMgr.getZoneInfo(zone);
+    return Certificate(zoneInfo["dkey"]);
+  }
+
   Response
   findResponse(Zone& zone, const Name& label, const name::Component& type)
   {
@@ -235,6 +247,7 @@ public:
   Name rootDsk;
   Name otherKsk;
   Name otherDsk;
+  Name rootDkey;
 };
 
 BOOST_FIXTURE_TEST_SUITE(ManagementTool, ManagementToolFixture)
@@ -276,8 +289,16 @@ BOOST_FIXTURE_TEST_SUITE(ManagementTool, ManagementToolFixture)
 
 BOOST_AUTO_TEST_CASE(CreateDeleteRootFixture)
 {
-  m_tool.createZone(ROOT_ZONE, ROOT_ZONE, time::seconds(4600), time::seconds(4600),
-                    rootKsk, rootDsk);
+  // creating root_zone need a rootDkey
+  BOOST_CHECK_THROW(m_tool.createZone(ROOT_ZONE, ROOT_ZONE,
+                                      time::seconds(4600),
+                                      time::seconds(4600),
+                                      rootKsk, rootDsk), ndns::ManagementTool::Error);
+
+  m_tool.createZone(ROOT_ZONE, ROOT_ZONE,
+                    time::seconds(4600),
+                    time::seconds(4600),
+                    rootKsk, rootDsk, rootDkey);
 
   Zone zone(ROOT_ZONE);
   Name zoneIdentityName = Name(ROOT_ZONE).append("NDNS");
@@ -285,6 +306,7 @@ BOOST_AUTO_TEST_CASE(CreateDeleteRootFixture)
   BOOST_REQUIRE_NO_THROW(findCertFromDb(zone, rootDsk));
   BOOST_CHECK_EQUAL(findCertFromDb(zone, rootDsk).getName(), rootDsk);
   BOOST_CHECK_EQUAL(findCertFromDb(zone, rootKsk).getName(), rootKsk);
+  BOOST_CHECK_EQUAL(findDkeyFromDb(ROOT_ZONE).getName(), rootDkey);
 
   BOOST_CHECK_EQUAL(findCertFromIdentity(zoneIdentityName, rootDsk).getName(), rootDsk);
   BOOST_CHECK_EQUAL(findCertFromIdentity(zoneIdentityName, rootKsk).getName(), rootKsk);
@@ -347,19 +369,17 @@ BOOST_AUTO_TEST_CASE(CreateZoneWithFixture)
   BOOST_REQUIRE_EQUAL(m_dbMgr.find(zone), true);
   BOOST_CHECK_EQUAL(zone.getTtl(), time::seconds(4200));
 
+  // check dkey name
+  Name dkeyName = Name(parentZoneName).append("NDNS").append(zoneName.getSubName(parentZoneName.size()));
+  Certificate dkey = findDkeyFromDb(zoneName);
+  BOOST_CHECK(dkeyName.isPrefixOf(dkey.getName()));
+
+  // TODO: check signing hierarchy
+
   // Check dsk rrset ttl
   Rrset rrset;
   BOOST_REQUIRE_NO_THROW(rrset = findRrSet(zone, getLabel(zone, dsk), label::CERT_RR_TYPE));
   BOOST_CHECK_EQUAL(rrset.getTtl(), time::seconds(4200));
-
-  // Check auth record of DSK and KSK
-  BOOST_REQUIRE_NO_THROW(rrset = findRrSet(zone, getLabel(zone, dsk).getPrefix(1), label::NS_RR_TYPE));
-  BOOST_CHECK_EQUAL(rrset.getTtl(), time::seconds(4200));
-  BOOST_CHECK_EQUAL(Data(rrset.getData()).getContentType(), NDNS_AUTH);
-
-  BOOST_REQUIRE_NO_THROW(rrset = findRrSet(zone, getLabel(zone, ksk).getPrefix(1), label::NS_RR_TYPE));
-  BOOST_CHECK_EQUAL(rrset.getTtl(), time::seconds(4200));
-  BOOST_CHECK_EQUAL(Data(rrset.getData()).getContentType(), NDNS_AUTH);
 
   // Check certificate freshnessPeriod and validity
   Certificate cert = CertHelper::getCertificate(m_keyChain, zoneIdentityName, dsk);
@@ -433,11 +453,11 @@ BOOST_AUTO_TEST_CASE(ZoneCreatePreconditions)
                                       time::seconds(1), time::days(1), cert.getName()),
                     ndns::ManagementTool::Error);
 
-  // for root zone special case (requires a valid KSK to be specified)
+  // for root zone special case (requires a valid DKEY to be specified)
   BOOST_CHECK_THROW(m_tool.createZone("/", "/"), ndns::ManagementTool::Error);
 
   BOOST_CHECK_NO_THROW(m_tool.createZone("/", "/", time::seconds(1), time::days(1),
-                                         rootKsk));
+                                         DEFAULT_CERT, DEFAULT_CERT, rootDkey));
 }
 
 class OutputTester
@@ -803,7 +823,7 @@ BOOST_AUTO_TEST_CASE(AddRrSetDskCertFormat)
 
 BOOST_AUTO_TEST_CASE(ListAllZones)
 {
-  m_tool.createZone(ROOT_ZONE, ROOT_ZONE, time::seconds(1), time::days(1), rootKsk, rootDsk);
+  m_tool.createZone(ROOT_ZONE, ROOT_ZONE, time::seconds(1), time::days(1), rootKsk, rootDsk, rootDkey);
   m_tool.createZone("/ndns-test", ROOT_ZONE, time::seconds(10), time::days(1), otherKsk, otherDsk);
 
   Name rootDskName = CertHelper::getCertificate(m_keyChain, "/NDNS/", rootDsk).getKeyName();
