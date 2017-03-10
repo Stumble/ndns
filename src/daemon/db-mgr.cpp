@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS zones (
 CREATE TABLE IF NOT EXISTS zone_info (
   zone_id  INTEGER NOT NULL,
   key      VARCHAR(10) NOT NULL,
-  value    TEXT NOT NULL,
+  value    blob NOT NULL,
   PRIMARY KEY (zone_id, key),
   FOREIGN KEY(zone_id) REFERENCES zones(id) ON UPDATE Cascade ON DELETE Cascade);
 
@@ -159,7 +159,7 @@ DbMgr::insert(Zone& zone)
 void
 DbMgr::setZoneInfo(Zone& zone,
                    const std::string& key,
-                   const std::string& value)
+                   const Block& value)
 {
   if (zone.getId() == 0) {
     throw Error("zone has not been initialized");
@@ -177,8 +177,8 @@ DbMgr::setZoneInfo(Zone& zone,
   }
 
   sqlite3_bind_int(stmt,  1, zone.getId());
-  sqlite3_bind_text(stmt, 2, key.c_str(), key.length(), SQLITE_STATIC);
-  sqlite3_bind_text(stmt, 3, value.c_str(), value.length(), SQLITE_STATIC);
+  sqlite3_bind_text(stmt, 2, key.c_str(),  key.length(), SQLITE_STATIC);
+  sqlite3_bind_blob(stmt, 3, value.wire(), value.size(), SQLITE_STATIC);
 
   rc = sqlite3_step(stmt);
   if (rc != SQLITE_DONE) {
@@ -189,11 +189,11 @@ DbMgr::setZoneInfo(Zone& zone,
   sqlite3_finalize(stmt);
 }
 
-std::map<std::string, std::string>
+std::map<std::string, Block>
 DbMgr::getZoneInfo(Zone& zone)
 {
   using std::string;
-  std::map<string, string> rtn;
+  std::map<string, Block> rtn;
 
   if (zone.getId() == 0) {
     find(zone);
@@ -214,8 +214,8 @@ DbMgr::getZoneInfo(Zone& zone)
 
   while (sqlite3_step(stmt) == SQLITE_ROW) {
     const char* key = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-    const char* value = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-    rtn[string(key)] = string(value);
+    rtn[string(key)] = Block(static_cast<const uint8_t*>(sqlite3_column_blob(stmt, 1)),
+                             sqlite3_column_bytes(stmt, 1));
   }
 
   sqlite3_finalize(stmt);

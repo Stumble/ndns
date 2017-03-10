@@ -145,8 +145,11 @@ ManagementTool::createZone(const Name &zoneName,
   addIdCert(zone, dskCert, cacheTtl, dskCert);
 
   NDNS_LOG_INFO("Start saving KSK and DSK's id to ZoneInfo");
-  m_dbMgr.setZoneInfo(zone, "ksk", kskCert.getName().toUri());
-  m_dbMgr.setZoneInfo(zone, "dsk", dskCert.getName().toUri());
+  m_dbMgr.setZoneInfo(zone, "ksk", kskCert.getName().wireEncode());
+  m_dbMgr.setZoneInfo(zone, "dsk", dskCert.getName().wireEncode());
+
+  // TODO: add D-key to zone
+  // m_dbMgr.setZoneInfo
 
   return zone;
 }

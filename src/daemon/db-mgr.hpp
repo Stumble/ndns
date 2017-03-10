@@ -105,21 +105,17 @@ public: // Zone manipulation
   insert(Zone& zone);
 
   /**
-   * @brief lookup the zone by name, fill the m_id and m_ttl
-   * @post whatever the previous id is
-   * @return true if the record exist
+   * @brief set zoneInfo by key-value
    */
   void
   setZoneInfo(Zone& zone,
               const std::string& key,
-              const std::string& value);
+              const Block& value);
 
   /**
-   * @brief lookup the zone by name, fill the m_id and m_ttl
-   * @post whatever the previous id is
-   * @return true if the record exist
+   * @brief get zoneInfo
    */
-  std::map<std::string, std::string>
+  std::map<std::string, Block>
   getZoneInfo(Zone& zone);
 
   /**
