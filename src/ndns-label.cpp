@@ -36,8 +36,7 @@ calculateSkip(const Name& name,
   BOOST_ASSERT(name.size() > skip);
   BOOST_ASSERT(name.getPrefix(zone.size()) == zone);
 
-  BOOST_ASSERT(name.get(skip) == NDNS_ITERATIVE_QUERY ||
-               name.get(skip) == NDNS_CERT_QUERY);
+  BOOST_ASSERT(name.get(skip) == NDNS_ITERATIVE_QUERY);
 
   ++skip;
   return skip;
