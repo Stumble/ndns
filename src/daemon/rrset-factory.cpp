@@ -116,7 +116,6 @@ RrsetFactory::matchCertificate(const Name& certName, const Name& identity)
 
 Rrset
 RrsetFactory::generateNsRrset(const Name& label,
-                              const name::Component& type,
                               const uint64_t version,
                               time::seconds ttl,
                               const ndn::Link::DelegationSet& delegations)
@@ -128,7 +127,7 @@ RrsetFactory::generateNsRrset(const Name& label,
   if (ttl == DEFAULT_RR_TTL)
     ttl = m_zone.getTtl();
 
-  std::pair<Rrset, Name> rrsetAndName = generateBaseRrset(label, type, version, ttl);
+  std::pair<Rrset, Name> rrsetAndName = generateBaseRrset(label, label::NS_RR_TYPE, version, ttl);
   const Name& name = rrsetAndName.second;
   Rrset& rrset = rrsetAndName.first;
 
@@ -146,7 +145,6 @@ RrsetFactory::generateNsRrset(const Name& label,
 
 Rrset
 RrsetFactory::generateTxtRrset(const Name& label,
-                               const name::Component& type,
                                const uint64_t version,
                                time::seconds ttl,
                                const std::vector<std::string>& strings)
@@ -160,7 +158,7 @@ RrsetFactory::generateTxtRrset(const Name& label,
 
   Name name;
   Rrset rrset;
-  std::tie(rrset, name) = generateBaseRrset(label, type, version, ttl);
+  std::tie(rrset, name) = generateBaseRrset(label, label::TXT_RR_TYPE, version, ttl);
 
   std::vector<Block> rrs;
   for (const auto& item : strings) {
@@ -181,7 +179,6 @@ RrsetFactory::generateTxtRrset(const Name& label,
 
 Rrset
 RrsetFactory::generateCertRrset(const Name& label,
-                                const name::Component& type,
                                 const uint64_t version,
                                 time::seconds ttl,
                                 const Certificate& cert)
@@ -195,7 +192,7 @@ RrsetFactory::generateCertRrset(const Name& label,
 
   Name name;
   Rrset rrset;
-  std::tie(rrset, name) = generateBaseRrset(label, type, version, ttl);
+  std::tie(rrset, name) = generateBaseRrset(label, label::APPCERT_RR_TYPE, version, ttl);
 
   Data data(name);
   data.setContent(cert.wireEncode());
@@ -209,7 +206,6 @@ RrsetFactory::generateCertRrset(const Name& label,
 
 Rrset
 RrsetFactory::generateAuthRrset(const Name& label,
-                                const name::Component& type,
                                 const uint64_t version,
                                 time::seconds ttl)
 {
@@ -222,7 +218,7 @@ RrsetFactory::generateAuthRrset(const Name& label,
 
   Name name;
   Rrset rrset;
-  std::tie(rrset, name) = generateBaseRrset(label, type, version, ttl);
+  std::tie(rrset, name) = generateBaseRrset(label, label::NS_RR_TYPE, version, ttl);
 
   Data data(name);
 

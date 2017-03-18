@@ -96,7 +96,7 @@ DbTestData::DbTestData()
     const name::Component version = name::Component::fromVersion(100 + 1000 * certificateIndex);
     name::Component qType(label::NDNS_ITERATIVE_QUERY);
     NdnsContentType contentType = NDNS_RESP;
-    if (type == label::CERT_RR_TYPE) {
+    if (type == label::APPCERT_RR_TYPE) {
       contentType = NDNS_KEY;
     } else if (type == label::NS_RR_TYPE) {
       contentType = NDNS_LINK;
@@ -136,16 +136,16 @@ DbTestData::addRrset(Zone& zone, const Name& label, const name::Component& type,
   rf.onlyCheckZone();
   if (type == label::NS_RR_TYPE) {
     ndn::Link::DelegationSet ds = {std::pair<uint32_t, Name>(1,"/xx")};
-    rrset = rf.generateNsRrset(label, type, version.toVersion(), ttl, ds);
+    rrset = rf.generateNsRrset(label, version.toVersion(), ttl, ds);
     if (contentType != NDNS_AUTH) {
       // do not add AUTH packet to link
       m_links.push_back(Link(rrset.getData()));
     }
   } else if (type == label::TXT_RR_TYPE) {
-    rrset = rf.generateTxtRrset(label, type, version.toVersion(), ttl,
+    rrset = rf.generateTxtRrset(label, version.toVersion(), ttl,
                                 std::vector<std::string>());
-  } else if (type == label::CERT_RR_TYPE) {
-    rrset = rf.generateCertRrset(label, type, version.toVersion(), ttl,
+  } else if (type == label::APPCERT_RR_TYPE) {
+    rrset = rf.generateCertRrset(label, version.toVersion(), ttl,
                                  m_cert);
   }
 
