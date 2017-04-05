@@ -33,6 +33,7 @@
 #include <ndn-cxx/interest.hpp>
 #include <ndn-cxx/name.hpp>
 #include <ndn-cxx/link.hpp>
+#include <ndn-cxx/ims/in-memory-storage-lru.hpp>
 
 namespace ndn {
 namespace ndns {
@@ -149,6 +150,7 @@ protected:
 
 private:
   Block m_lastLink;
+  static ndn::InMemoryStorageLru s_nsCache;
 };
 
 std::ostream&
