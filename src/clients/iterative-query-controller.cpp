@@ -26,6 +26,9 @@ namespace ndn {
 namespace ndns {
 NDNS_LOG_INIT("IterQueryCtr")
 
+static const int ITERATIVE_QUERY_CONTROLLER_CACHE_SIZE = 500;
+ndn::util::InMemoryStorageLru IterativeQueryController::s_nsCache(ITERATIVE_QUERY_CONTROLLER_CACHE_SIZE);
+
 IterativeQueryController::IterativeQueryController(const Name& dstLabel,
                                                    const name::Component& rrType,
                                                    const time::milliseconds& interestLifetime,
@@ -83,6 +86,10 @@ IterativeQueryController::onData(const ndn::Interest& interest, const Data& data
 void
 IterativeQueryController::onDataValidated(const Data& data, NdnsContentType contentType)
 {
+  if (contentType == NDNS_LINK) {
+    s_nsCache.insert(data);
+  }
+
   switch (m_step) {
   case QUERY_STEP_QUERY_NS:
     if (contentType == NDNS_NACK) {
@@ -172,6 +179,13 @@ IterativeQueryController::start()
 void
 IterativeQueryController::express(const Interest& interest)
 {
+  shared_ptr<const Data> cachedData = s_nsCache.find(interest);
+  if (cachedData != nullptr) {
+    NDNS_LOG_DEBUG("[* cached *] NS record has been cached before: " << interest.getName());
+    onData(interest, *cachedData);
+    return ;
+  }
+
   NDNS_LOG_DEBUG("[* <- *] send a Query: " << interest.getName());
   m_face.expressInterest(interest,
                          bind(&IterativeQueryController::onData, this, _1, _2),
