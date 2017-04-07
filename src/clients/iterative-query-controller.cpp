@@ -17,7 +17,6 @@
  * NDNS, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "validator.hpp"
 #include "iterative-query-controller.hpp"
 #include "logger.hpp"
 #include <iostream>
