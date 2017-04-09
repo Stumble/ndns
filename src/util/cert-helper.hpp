@@ -61,7 +61,6 @@ public:
                     const time::seconds& certValidity = time::days(10));
 };
 
-
 } // namespace ndns
 } // namespace ndn
 
