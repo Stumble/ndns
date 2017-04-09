@@ -18,11 +18,11 @@
  */
 
 #include "validator.hpp"
-#include "logger.hpp"
 #include "config.hpp"
+#include "certificate-fetcher-ndns-cert.hpp"
+#include "logger.hpp"
 
 #include <ndn-cxx/security/v2/validation-policy-config.hpp>
-#include <ndn-cxx/security/v2/certificate-fetcher-from-network.hpp>
 
 #include <fstream>
 #include <boost/algorithm/string/replace.hpp>
@@ -38,7 +38,7 @@ std::string ValidatorNdns::VALIDATOR_CONF_FILE = DEFAULT_CONFIG_PATH "/" "valida
 
 ValidatorNdns::ValidatorNdns(Face& face, const std::string& confFile /* = VALIDATOR_CONF_FILE */)
   : Validator(make_unique<security::v2::ValidationPolicyConfig>(),
-              make_unique<security::v2::CertificateFetcherFromNetwork>(face))
+              make_unique<CertificateFetcherNdnsCert>(face))
 {
   ValidationPolicyConfig& policyConfig = dynamic_cast<ValidationPolicyConfig&>(Validator::getPolicy());
   std::ifstream confFileStream;
@@ -68,7 +68,7 @@ rule
       {
         k-regex ^([^<NDNS>]*)<NDNS>(<>*)<KEY><>$
         k-expand \\1\\2
-        h-relation is-prefix-of ; ksk should be signed by dkey in parent zone
+        h-relation equal ; ksk should be signed by dkey in parent zone
         p-regex ^([^<NDNS>]*)<NDNS><KEY><><><>$
         p-expand \\1
       }
