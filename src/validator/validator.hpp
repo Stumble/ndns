@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /**
- * Copyright (c) 2014, Regents of the University of California.
+ * Copyright (c) 2014-2017, Regents of the University of California.
  *
  * This file is part of NDNS (Named Data Networking Domain Name Service).
  * See AUTHORS.md for complete list of NDNS authors and contributors.
@@ -17,8 +17,8 @@
  * NDNS, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef NDNS_VALIDATOR_HPP
-#define NDNS_VALIDATOR_HPP
+#ifndef NDNS_VALIDATOR_VALIDATOR_HPP
+#define NDNS_VALIDATOR_VALIDATOR_HPP
 
 #include "config.hpp"
 
