@@ -28,8 +28,6 @@
 namespace ndn {
 namespace ndns {
 
-NDNS_LOG_INIT("CertificateFetcherNdnsCert")
-
 /**
  * @brief Fetch NDNS-owned certificate by an iterative query process
  */
@@ -50,7 +48,7 @@ private:
    * @brief Callback invoked when rrset is retrived, including nack
    */
   void
-  succCallback(const Data&,
+  succCallback(const Data& data,
                const shared_ptr<security::v2::CertificateRequest>& certRequest,
                const shared_ptr<security::v2::ValidationState>& state,
                const ValidationContinuation& continueValidation);

@@ -23,6 +23,8 @@
 namespace ndn {
 namespace ndns {
 
+NDNS_LOG_INIT("CertificateFetcherNdnsCert")
+
 CertificateFetcherNdnsCert::CertificateFetcherNdnsCert(Face& face)
   : m_face(face)
 {}
@@ -45,6 +47,7 @@ CertificateFetcherNdnsCert::doFetch(const shared_ptr<security::v2::CertificateRe
                                                        failCallback(errMsg, certRequest, state, continueValidation);
                                                      },
                                                      m_face);
+  query->setStartComponentIndex(1);
   query->start();
   auto queryTag = make_shared<IterativeQueryTag>(query);
   state->setTag(queryTag);
