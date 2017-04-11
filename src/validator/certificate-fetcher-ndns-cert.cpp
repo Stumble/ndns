@@ -32,23 +32,68 @@ CertificateFetcherNdnsCert::doFetch(const shared_ptr<security::v2::CertificateRe
                                     const shared_ptr<security::v2::ValidationState>& state,
                                     const ValidationContinuation& continueValidation)
 {
-  
+  using IterativeQueryTag = SimpleTag<shared_ptr<IterativeQueryController>, 1086>;
+  const Name& key = certRequest->m_interest.getName();
+  Name dstLabel = parseKey(key);
+  auto query = make_shared<IterativeQueryController>(dstLabel,
+                                                     label::CERT_RR_TYPE,
+                                                     certRequest->m_interest.getInterestLifetime(),
+                                                     [=] (const Data& data, const Response& response) {
+                                                       succCallback(data, certRequest, state, continueValidation);
+                                                     },
+                                                     [=] (uint32_t errCode, const std::string& errMsg) {
+                                                       failCallback(errMsg, certRequest, state, continueValidation);
+                                                     },
+                                                     m_face);
+  query->start();
+  auto queryTag = make_shared<IterativeQueryTag>(query);
+  state->setTag(queryTag);
 }
 
 void
-CertificateFetcherNdnsCert::succCallback(const Data&,
-                                         const Response&)
+CertificateFetcherNdnsCert::succCallback(const Data& data,
+                                         const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                                         const shared_ptr<security::v2::ValidationState>& state,
+                                         const ValidationContinuation& continueValidation)
 {
-  
+  if (data.getContentType() == NDNS_NACK) {
+    state->fail({ValidationError::Code::CANNOT_RETRIEVE_CERT, "Cannot fetch certificate: get a Nack "
+          "in query `" + certRequest->m_interest.getName().toUri() + "`"});
+    return;
+  }
+
+  Certificate cert;
+  try {
+    cert = Certificate(data);
+  }
+  catch (const ndn::tlv::Error& e) {
+    return state->fail({ValidationError::Code::MALFORMED_CERT, "Fetched a malformed certificate "
+          "`" + data.getName().toUri() + "` (" + e.what() + ")"});
+  }
+  continueValidation(cert, state);
 }
 
 void
-CertificateFetcherNdnsCert::failCallback(uint32_t errCode,
-                                         const std::string& errMsg)
+CertificateFetcherNdnsCert::failCallback(const std::string& errMsg,
+                                         const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                                         const shared_ptr<security::v2::ValidationState>& state,
+                                         const ValidationContinuation& continueValidation)
 {
-  
+  state->fail({ValidationError::Code::CANNOT_RETRIEVE_CERT, "Cannot fetch certificate due to " +
+        errMsg + " `" + certRequest->m_interest.getName().toUri() + "`"});
 }
 
+Name
+CertificateFetcherNdnsCert::parseKey(const Name& key)
+{
+  // for (const auto& comp : key) {
+  for (size_t i = 0; i < key.size(); i++) {
+    if (key[i] == label::NDNS_ITERATIVE_QUERY) {
+      return Name(key.getPrefix(i)).append(key.getSubName(i + 1));
+    }
+  }
+  throw std::runtime_error(key.toUri() + "is not a legal NDNS certificate name");
+}
 
 } // namespace ndns
 } // namespace ndn
