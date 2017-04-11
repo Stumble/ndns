@@ -50,7 +50,10 @@ private:
    * @brief Callback invoked when rrset is retrived, including nack
    */
   void
-  succCallback(const Data&, const Response&);
+  succCallback(const Data&,
+               const shared_ptr<security::v2::CertificateRequest>& certRequest,
+               const shared_ptr<security::v2::ValidationState>& state,
+               const ValidationContinuation& continueValidation);
 
   /**
    * @brief Callback invoked when iterative query failed
@@ -58,7 +61,18 @@ private:
    * @todo retry for some amount of time
    */
   void
-  failCallback(uint32_t errCode, const std::string& errMsg);
+  failCallback(const std::string& errMsg,
+               const shared_ptr<security::v2::CertificateRequest>& certRequest,
+               const shared_ptr<security::v2::ValidationState>& state,
+               const ValidationContinuation& continueValidation);
+
+  /**
+   * @brief get NDNS query's domainName and label name by parsing keylocator
+   *
+   * The return result is the name with "/NDNS" removed in key
+   */
+  Name
+  parseKey(const Name& key);
 
 private:
   Face& m_face;
