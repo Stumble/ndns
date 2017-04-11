@@ -18,6 +18,7 @@
  */
 
 #include "validator/validator.hpp"
+#include "ndns-label.hpp"
 
 #include "test-common.hpp"
 #include "util/cert-helper.hpp"
@@ -96,11 +97,41 @@ public:
   void
   respondInterest(const Interest& interest)
   {
-    Name keyName = interest.getName();
-    Name identityName = keyName.getPrefix(-2);
-    NDNS_LOG_TRACE("validator needs cert of KEY: " << keyName);
+    Name name = interest.getName();
+    Name::Component type = *name.rbegin();
+    if (type == label::NS_RR_TYPE) {
+      Name::Component label = *(name.rbegin() + 1);
+      Name::Component beforeLabel = *(name.rbegin() + 2);
+      Block wire;
+      if (label == Name::Component("KEY")) {
+        // return auth
+        Data auth(name);
+        auth.setContentType(NDNS_AUTH);
+        m_keyChain.sign(auth, signingByKey(m_dsk1));
+        wire = auth.wireEncode();
+      } else if (beforeLabel == Name::Component("KEY")) {
+        // return nack
+        Data nack(name);
+        nack.setContentType(NDNS_NACK);
+        m_keyChain.sign(nack, signingByKey(m_dsk1));
+        wire = nack.wireEncode();
+      } else {
+        // return a random link
+        Link link(name, {std::pair<uint32_t, Name>(1, Name("/localhost"))});
+        m_keyChain.sign(link, signingByKey(m_dsk1));
+        wire = link.wireEncode();
+      }
+      Data data(wire);
+      m_face.getIoService().post([this, data] {
+        m_face.receive(data);
+      });
+      return ;
+    }
+
+    Name identityName = name.getPrefix(-3);
+    NDNS_LOG_TRACE("validator needs cert of KEY: " << name);
     auto cert = m_keyChain.getPib().getIdentity(identityName)
-                                   .getKey(keyName)
+                                   .getKey(name.getPrefix(-1))
                                    .getDefaultCertificate();
     m_face.getIoService().post([this, cert] {
         m_face.receive(cert);

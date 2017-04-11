@@ -20,9 +20,9 @@
 #include "logger.hpp"
 #include "config.hpp"
 #include "validator.hpp"
+#include "certificate-fetcher-ndns-cert.hpp"
 
 #include <ndn-cxx/security/v2/validation-policy-config.hpp>
-#include <ndn-cxx/security/v2/certificate-fetcher-from-network.hpp>
 
 #include <boost/algorithm/string/replace.hpp>
 
@@ -35,7 +35,7 @@ std::string ValidatorNdns::VALIDATOR_CONF_FILE = DEFAULT_CONFIG_PATH "/" "valida
 
 ValidatorNdns::ValidatorNdns(Face& face, const std::string& confFile /* = VALIDATOR_CONF_FILE */)
   : Validator(make_unique<security::v2::ValidationPolicyConfig>(),
-              make_unique<security::v2::CertificateFetcherFromNetwork>(face))
+              make_unique<CertificateFetcherNdnsCert>(face))
 {
   ValidationPolicyConfig& policyConfig = dynamic_cast<ValidationPolicyConfig&>(Validator::getPolicy());
   try {
