@@ -19,6 +19,16 @@
 #include "certificate-fetcher-ndns-appcert.hpp"
 #include "clients/iterative-query-controller.hpp"
 
+// test case: fake interest response
+// for NS, return a link
+// for APPCERT, return a link
+// for APPCERT is signed by dsk1
+// validate dsk1
+// check de-encapsulated packet equals to appcert
+
+// appcert not exist
+// appcert signed by wrong guy
+
 namespace ndn {
 namespace ndns {
 
@@ -32,25 +42,82 @@ CertificateFetcherAppCert::doFetch(const shared_ptr<security::v2::CertificateReq
                                    const shared_ptr<security::v2::ValidationState>& state,
                                    const ValidationContinuation& continueValidation)
 {
-
+  using IterativeQueryTag = SimpleTag<shared_ptr<IterativeQueryController>, 1086>;
+  const Name& key = certRequest->m_interest.getName();
+  auto query = make_shared<IterativeQueryController>(key,
+                                                     label::APPCERT_RR_TYPE,
+                                                     certRequest->m_interest.getInterestLifetime(),
+                                                     [=] (const Data& data, const Response& response) {
+                                                       onQuerySuccCallback(data, certRequest, state, continueValidation);
+                                                     },
+                                                     [=] (uint32_t errCode, const std::string& errMsg) {
+                                                       onQueryFailCallback(errMsg, certRequest, state, continueValidation);
+                                                     },
+                                                     m_face);
+  query->setStartComponentIndex(1);
+  query->start();
+  auto queryTag = make_shared<IterativeQueryTag>(query);
+  state->setTag(queryTag);
 }
 
 void
-CertificateFetcherAppCert::onQuerySuccCallback(const Data&, const Response&)
-{}
+CertificateFetcherAppCert::onQuerySuccCallback(const Data& data,
+                                               const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                                               const shared_ptr<security::v2::ValidationState>& state,
+                                               const ValidationContinuation& continueValidation)
+{
+  m_validator.validate(data,
+                       [=] (const Data& data) {
+                         onValidationSuccCallback(data, certRequest, state, continueValidation);
+                       },
+                       [=] (const Data& data,
+                            const security::v2::ValidationError& errStr) {
+                         onValidationFailCallback(errStr, certRequest, state, continueValidation);
+                       });
+}
 
 void
-CertificateFetcherAppCert::onQueryFailCallback(uint32_t errCode, const std::string& errMsg)
-{}
+CertificateFetcherAppCert::onQueryFailCallback(const std::string& errMsg,
+                                               const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                                               const shared_ptr<security::v2::ValidationState>& state,
+                                               const ValidationContinuation& continueValidation)
+{
+  state->fail({ValidationError::Code::CANNOT_RETRIEVE_CERT, "Cannot fetch certificate due to " +
+        errMsg + " `" + certRequest->m_interest.getName().toUri() + "`"});
+}
 
 void
-CertificateFetcherAppCert::onValidationSuccCallback(const Data&)
-{}
+CertificateFetcherAppCert::onValidationSuccCallback(const Data& data,
+                                                    const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                                                    const shared_ptr<security::v2::ValidationState>& state,
+                                                    const ValidationContinuation& continueValidation)
+{
+  if (data.getContentType() == NDNS_NACK) {
+    state->fail({ValidationError::Code::CANNOT_RETRIEVE_CERT, "Cannot fetch certificate: get a Nack "
+          "in query `" + certRequest->m_interest.getName().toUri() + "`"});
+    return;
+  }
+
+  Certificate cert;
+  try {
+    cert = Certificate(data.getContent());
+  }
+  catch (const ndn::tlv::Error& e) {
+    return state->fail({ValidationError::Code::MALFORMED_CERT, "Fetched a malformed certificate "
+          "`" + data.getName().toUri() + "` (" + e.what() + ")"});
+  }
+  continueValidation(cert, state);
+}
 
 void
-CertificateFetcherAppCert::onValidationFailCallback(const Data& data,
-                                                    const security::v2::ValidationError& str)
-{}
+CertificateFetcherAppCert::onValidationFailCallback(const security::v2::ValidationError& err,
+                                                    const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                                                    const shared_ptr<security::v2::ValidationState>& state,
+                                                    const ValidationContinuation& continueValidation)
+{
+  state->fail({ValidationError::Code::CANNOT_RETRIEVE_CERT, "Cannot fetch certificate due to NDNS validation error :" +
+        err.getInfo() + " `" + certRequest->m_interest.getName().toUri() + "`"});
+}
 
 
 } // namespace ndns

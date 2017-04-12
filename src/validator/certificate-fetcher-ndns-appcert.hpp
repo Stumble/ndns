@@ -54,7 +54,10 @@ private:
    * @brief Callback invoked when rrset is retrived, including nack
    */
   void
-  onQuerySuccCallback(const Data&, const Response&);
+  onQuerySuccCallback(const Data& data,
+                      const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                      const shared_ptr<security::v2::ValidationState>& state,
+                      const ValidationContinuation& continueValidation);
 
   /**
    * @brief Callback invoked when iterative query failed
@@ -62,20 +65,28 @@ private:
    * @todo retry for some amount of time
    */
   void
-  onQueryFailCallback(uint32_t errCode, const std::string& errMsg);
+  onQueryFailCallback(const std::string& errMsg,
+                      const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                      const shared_ptr<security::v2::ValidationState>& state,
+                      const ValidationContinuation& continueValidation);
 
   /**
    * @brief Callback invoked when rrset validation succeeded
    */
   void
-  onValidationSuccCallback(const Data&);
+  onValidationSuccCallback(const Data& data,
+                           const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                           const shared_ptr<security::v2::ValidationState>& state,
+                           const ValidationContinuation& continueValidation);
 
   /**
    * @brief Callback invoked when rrset validation failed
    */
   void
-  onValidationFailCallback(const Data& data,
-                           const security::v2::ValidationError& str);
+  onValidationFailCallback(const security::v2::ValidationError& err,
+                           const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                           const shared_ptr<security::v2::ValidationState>& state,
+                           const ValidationContinuation& continueValidation);
 
 private:
   Face& m_face;
