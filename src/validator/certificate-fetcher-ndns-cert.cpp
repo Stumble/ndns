@@ -20,6 +20,8 @@
 #include "certificate-fetcher-ndns-cert.hpp"
 #include "clients/iterative-query-controller.hpp"
 
+#include <ndn-cxx/encoding/tlv.hpp>
+
 namespace ndn {
 namespace ndns {
 
@@ -36,15 +38,15 @@ CertificateFetcherNdnsCert::doFetch(const shared_ptr<security::v2::CertificateRe
 {
   using IterativeQueryTag = SimpleTag<shared_ptr<IterativeQueryController>, 1086>;
   const Name& key = certRequest->m_interest.getName();
-  Name dstLabel = parseKey(key);
-  auto query = make_shared<IterativeQueryController>(dstLabel,
-                                                     label::CERT_RR_TYPE,
+  Name domain = calculateDomain(key);
+  auto query = make_shared<IterativeQueryController>(domain,
+                                                     label::NS_RR_TYPE,
                                                      certRequest->m_interest.getInterestLifetime(),
                                                      [=] (const Data& data, const Response& response) {
-                                                       succCallback(data, certRequest, state, continueValidation);
+                                                       nsSuccCallback(data, certRequest, state, continueValidation);
                                                      },
                                                      [=] (uint32_t errCode, const std::string& errMsg) {
-                                                       failCallback(errMsg, certRequest, state, continueValidation);
+                                                       nsFailCallback(errMsg, certRequest, state, continueValidation);
                                                      },
                                                      m_face);
   query->setStartComponentIndex(1);
@@ -54,16 +56,75 @@ CertificateFetcherNdnsCert::doFetch(const shared_ptr<security::v2::CertificateRe
 }
 
 void
-CertificateFetcherNdnsCert::succCallback(const Data& data,
+CertificateFetcherNdnsCert::nsSuccCallback(const Data& data,
+                                           const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                                           const shared_ptr<security::v2::ValidationState>& state,
+                                           const ValidationContinuation& continueValidation)
+{
+  Name interestName(certRequest->m_interest.getName());
+  interestName.append(label::CERT_RR_TYPE);
+  Interest interest(interestName);
+
+  if (data.getContentType() == NDNS_LINK) {
+    interest.setLink(data.wireEncode());
+  } else {
+    NDNS_LOG_WARN("fail to get NS rrset of " << interestName << " , returned data type:" << data.getContentType());
+  }
+
+  m_face.expressInterest(interest,
+                         [=] (const Interest& interest, const Data& data) {
+                           dataCallback(data, certRequest, state, continueValidation);
+                         },
+                         [=] (const Interest& interest, const lp::Nack& nack) {
+                           nackCallback(nack, certRequest, state, continueValidation);
+                         },
+                         [=] (const Interest& interest) {
+                           timeoutCallback(certRequest, state, continueValidation);
+                         });
+}
+
+void
+CertificateFetcherNdnsCert::nsFailCallback(const std::string& errMsg,
+                                           const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                                           const shared_ptr<security::v2::ValidationState>& state,
+                                           const ValidationContinuation& continueValidation)
+{
+  NDNS_LOG_WARN("Cannot fetch link due to " +
+                errMsg + " `" + certRequest->m_interest.getName().toUri() + "`");
+
+  Name interestName(certRequest->m_interest.getName());
+  interestName.append(label::CERT_RR_TYPE);
+  Interest interest(interestName);
+  m_face.expressInterest(interest,
+                         [=] (const Interest& interest, const Data& data) {
+                           dataCallback(data, certRequest, state, continueValidation);
+                         },
+                         [=] (const Interest& interest, const lp::Nack& nack) {
+                           nackCallback(nack, certRequest, state, continueValidation);
+                         },
+                         [=] (const Interest& interest) {
+                           timeoutCallback(certRequest, state, continueValidation);
+                         });
+}
+
+Name
+CertificateFetcherNdnsCert::calculateDomain(const Name& key)
+{
+  for (size_t i = 0; i < key.size(); i++) {
+    if (key[i] == label::NDNS_ITERATIVE_QUERY) {
+      return key.getPrefix(i);
+    }
+  }
+  throw std::runtime_error(key.toUri() + "is not a legal NDNS certificate name");
+}
+
+void
+CertificateFetcherNdnsCert::dataCallback(const Data& data,
                                          const shared_ptr<security::v2::CertificateRequest>& certRequest,
                                          const shared_ptr<security::v2::ValidationState>& state,
                                          const ValidationContinuation& continueValidation)
 {
-  if (data.getContentType() == NDNS_NACK) {
-    state->fail({ValidationError::Code::CANNOT_RETRIEVE_CERT, "Cannot fetch certificate: get a Nack "
-          "in query `" + certRequest->m_interest.getName().toUri() + "`"});
-    return;
-  }
+  NDNS_LOG_DEBUG("Fetched certificate from network " << data.getName());
 
   Certificate cert;
   try {
@@ -71,31 +132,47 @@ CertificateFetcherNdnsCert::succCallback(const Data& data,
   }
   catch (const ndn::tlv::Error& e) {
     return state->fail({ValidationError::Code::MALFORMED_CERT, "Fetched a malformed certificate "
-          "`" + data.getName().toUri() + "` (" + e.what() + ")"});
+                        "`" + data.getName().toUri() + "` (" + e.what() + ")"});
   }
   continueValidation(cert, state);
 }
 
 void
-CertificateFetcherNdnsCert::failCallback(const std::string& errMsg,
+CertificateFetcherNdnsCert::nackCallback(const lp::Nack& nack,
                                          const shared_ptr<security::v2::CertificateRequest>& certRequest,
                                          const shared_ptr<security::v2::ValidationState>& state,
                                          const ValidationContinuation& continueValidation)
 {
-  state->fail({ValidationError::Code::CANNOT_RETRIEVE_CERT, "Cannot fetch certificate due to " +
-        errMsg + " `" + certRequest->m_interest.getName().toUri() + "`"});
+  NDNS_LOG_DEBUG("NACK (" << nack.getReason() <<  ") while fetching certificate "
+                 << certRequest->m_interest.getName());
+
+  --certRequest->m_nRetriesLeft;
+  if (certRequest->m_nRetriesLeft >= 0) {
+    // TODO implement delay for the the next fetch
+    fetch(certRequest, state, continueValidation);
+  }
+  else {
+    state->fail({ValidationError::Code::CANNOT_RETRIEVE_CERT, "Cannot fetch certificate after all "
+                 "retries `" + certRequest->m_interest.getName().toUri() + "`"});
+  }
 }
 
-Name
-CertificateFetcherNdnsCert::parseKey(const Name& key)
+void
+CertificateFetcherNdnsCert::timeoutCallback(const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                                            const shared_ptr<security::v2::ValidationState>& state,
+                                            const ValidationContinuation& continueValidation)
 {
-  // for (const auto& comp : key) {
-  for (size_t i = 0; i < key.size(); i++) {
-    if (key[i] == label::NDNS_ITERATIVE_QUERY) {
-      return Name(key.getPrefix(i)).append(key.getSubName(i + 1));
-    }
+  NDNS_LOG_DEBUG("Timeout while fetching certificate " << certRequest->m_interest.getName()
+                 << ", retrying");
+
+  --certRequest->m_nRetriesLeft;
+  if (certRequest->m_nRetriesLeft >= 0) {
+    fetch(certRequest, state, continueValidation);
   }
-  throw std::runtime_error(key.toUri() + "is not a legal NDNS certificate name");
+  else {
+    state->fail({ValidationError::Code::CANNOT_RETRIEVE_CERT, "Cannot fetch certificate after all "
+                 "retries `" + certRequest->m_interest.getName().toUri() + "`"});
+  }
 }
 
 } // namespace ndns

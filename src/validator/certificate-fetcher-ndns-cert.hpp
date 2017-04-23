@@ -45,13 +45,13 @@ protected:
 
 private:
   /**
-   * @brief Callback invoked when rrset is retrived, including nack
+   * @brief Callback invoked when NS rrset of the domain is retrived, including nack rrset
    */
   void
-  succCallback(const Data& data,
-               const shared_ptr<security::v2::CertificateRequest>& certRequest,
-               const shared_ptr<security::v2::ValidationState>& state,
-               const ValidationContinuation& continueValidation);
+  nsSuccCallback(const Data& data,
+                 const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                 const shared_ptr<security::v2::ValidationState>& state,
+                 const ValidationContinuation& continueValidation);
 
   /**
    * @brief Callback invoked when iterative query failed
@@ -59,20 +59,50 @@ private:
    * @todo retry for some amount of time
    */
   void
-  failCallback(const std::string& errMsg,
+  nsFailCallback(const std::string& errMsg,
+                 const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                 const shared_ptr<security::v2::ValidationState>& state,
+                 const ValidationContinuation& continueValidation);
+
+  /**
+   * @brief get NDNS query's domainName and label name by parsing keylocator
+   *
+   * The return result is the name prefix before "/NDNS"
+   */
+  Name
+  calculateDomain(const Name& key);
+
+  /**
+   * @brief Callback invoked when certificate is retrieved.
+   */
+  void
+  dataCallback(const Data& data,
+               const shared_ptr<security::v2::CertificateRequest>& certRequest,
+               const shared_ptr<security::v2::ValidationState>& state,
+               const ValidationContinuation& continueValidation);
+  /**
+   * @brief Callback invoked when interest for fetching certificate gets NACKed.
+   *
+   * It will retry if certRequest->m_nRetriesLeft > 0
+   *
+   * @todo Delay retry for some amount of time
+   */
+  void
+  nackCallback(const lp::Nack& nack,
                const shared_ptr<security::v2::CertificateRequest>& certRequest,
                const shared_ptr<security::v2::ValidationState>& state,
                const ValidationContinuation& continueValidation);
 
   /**
-   * @brief get NDNS query's domainName and label name by parsing keylocator
+   * @brief Callback invoked when interest for fetching certificate times out.
    *
-   * The return result is the name with "/NDNS" removed in key
+   * It will retry if certRequest->m_nRetriesLeft > 0
    */
-  Name
-  parseKey(const Name& key);
-
-private:
+  void
+  timeoutCallback(const shared_ptr<security::v2::CertificateRequest>& certRequest,
+                  const shared_ptr<security::v2::ValidationState>& state,
+                  const ValidationContinuation& continueValidation);
+protected:
   Face& m_face;
 };
 
