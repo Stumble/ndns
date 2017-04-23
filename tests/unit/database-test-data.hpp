@@ -48,6 +48,7 @@ private:
   addRrset(Zone& zone, const Name& label, const name::Component& type,
            const time::seconds& ttl, const name::Component& version,
            const name::Component& qType, NdnsContentType contentType, const std::string& msg);
+
 public:
   class PreviousStateCleaner
   {
@@ -65,8 +66,16 @@ public:
   Zone m_net;
   Zone m_ndnsim;
   DbMgr m_session;
+
+  // test zone identity
   Identity m_identity;
+
+  // test zone dsk
   Certificate m_cert;
+
+  Name m_testName;
+  Name m_netName;
+  Name m_ndnsimName;
 };
 
 } // namespace tests
