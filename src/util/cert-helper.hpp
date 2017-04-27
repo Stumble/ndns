@@ -119,7 +119,7 @@ createCertificate(KeyChain& keyChain,
 
   // set signature-info
   SignatureInfo info;
-  info.setValidityPeriod(security::ValidityPeriod(time::system_clock::now(),
+  info.setValidityPeriod(security::ValidityPeriod(time::system_clock::TimePoint::min(),
                                                   time::system_clock::now() + certValidity));
 
   keyChain.sign(certificate, signingByKey(signingKey).setSignatureInfo(info));

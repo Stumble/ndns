@@ -58,6 +58,10 @@ public:
   };
 
 public:
+  ~IterativeQueryController() {
+    std::cout << "iterative died" << std::endl;
+  }
+
   explicit
   IterativeQueryController(const Name& dstLabel, const name::Component& rrType,
                            const time::milliseconds& interestLifetime,

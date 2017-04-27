@@ -39,13 +39,16 @@ CertificateFetcherNdnsCert::doFetch(const shared_ptr<security::v2::CertificateRe
   using IterativeQueryTag = SimpleTag<shared_ptr<IterativeQueryController>, 1086>;
   const Name& key = certRequest->m_interest.getName();
   Name domain = calculateDomain(key);
+  std::cout << "fetching: " << domain << std::endl;
   auto query = make_shared<IterativeQueryController>(domain,
                                                      label::NS_RR_TYPE,
                                                      certRequest->m_interest.getInterestLifetime(),
                                                      [=] (const Data& data, const Response& response) {
+                                                       std::cout << "!!!!!!nsSuccCalled" << std::endl;
                                                        nsSuccCallback(data, certRequest, state, continueValidation);
                                                      },
                                                      [=] (uint32_t errCode, const std::string& errMsg) {
+                                                       std::cout << "!!!!!!nsFailCalled" << std::endl;
                                                        nsFailCallback(errMsg, certRequest, state, continueValidation);
                                                      },
                                                      m_face);

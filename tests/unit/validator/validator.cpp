@@ -36,13 +36,13 @@ NDNS_LOG_INIT("ValidatorTest")
 
 BOOST_AUTO_TEST_SUITE(Validator)
 
-class ValidatorTestFixture : public DbTestData
+class ValidatorTestFixture : public DbTestData, public UnitTestTimeFixture
 {
 public:
   ValidatorTestFixture()
     : m_forwarder(m_io, m_keyChain)
     , m_face(m_forwarder.addFace())
-    , m_validator(m_face)
+    , m_validator(m_face, TEST_CONFIG_PATH "/" "validator.conf")
   {
     // generate a random cert
     // check how does name-server test do
@@ -65,6 +65,7 @@ public:
                                                         Name(m_ndnsimName).append("NDNS"));
     m_randomCert = m_keyChain.createIdentity("/random/identity").getDefaultKey()
     .getDefaultCertificate().getName();
+    advanceClocks(time::milliseconds(10), 1);
   }
 
   ~ValidatorTestFixture()
@@ -74,7 +75,7 @@ public:
   }
 
 public:
-  boost::asio::io_service m_io;
+  // boost::asio::io_service m_io;
   DummyForwarder m_forwarder;
   ndn::Face& m_face;
   ValidatorNdns m_validator;
@@ -88,10 +89,30 @@ BOOST_FIXTURE_TEST_CASE(Basic, ValidatorTestFixture)
 {
   // there is a precision issue in validity period
   // temporarily using sleep to overcome it
-  sleep(1);
+  // sleep(1);
 
-  // validator must be created after root key is saved to the target
-  ndns::ValidatorNdns validator(m_face, TEST_CONFIG_PATH "/" "validator.conf");
+  SignatureInfo info;
+  info.setValidityPeriod(security::ValidityPeriod(time::system_clock::TimePoint::min(),
+                                                  time::system_clock::now() + time::days(10)));
+
+  // auto showZone = [&](Zone& zone){
+  //   std::map<std::string, Block> info = m_session.getZoneInfo(zone);
+  //   std::cout << "============================" << std::endl;
+  //   std::cout << zone << std::endl;
+  //   std::cout << "----------dsk---------" << std::endl;
+  //   std::cout << Certificate(info["dsk"]) << std::endl;
+  //   std::cout << Data(info["dsk"]).getSignature().getKeyLocator() << std::endl;
+  //   std::cout << "----------ksk---------" << std::endl;
+  //   std::cout << Data(info["ksk"]) << std::endl;
+  //   std::cout << Data(info["ksk"]).getSignature().getKeyLocator() << std::endl;
+  //   std::cout << "----------dkey---------" << std::endl;
+  //   std::cout << Data(info["dkey"]) << std::endl;
+  //   std::cout << "============================" << std::endl;
+  // };
+
+  // showZone(m_test);
+  // showZone(m_net);
+  // showZone(m_ndnsim);
 
   // case1: record of testId3, signed by its dsk, should be successful validated.
   Name dataName;
@@ -102,21 +123,23 @@ BOOST_FIXTURE_TEST_CASE(Basic, ValidatorTestFixture)
     .append("rrType")
     .appendVersion();
   shared_ptr<Data> data = make_shared<Data>(dataName);
-  m_keyChain.sign(*data, signingByCertificate(m_ndnsimCert));
+  m_keyChain.sign(*data, signingByCertificate(m_ndnsimCert).setSignatureInfo(info));
 
   bool hasValidated = false;
-  validator.validate(*data,
-                     [&] (const Data& data) {
-                       hasValidated = true;
-                       BOOST_CHECK(true);
-                     },
-                     [&] (const Data& data, const ValidationError& str) {
-                       hasValidated = true;
-                       BOOST_CHECK(false);
-                     });
+  m_validator.validate(*data,
+                       [&] (const Data& data) {
+                         std::cout << "?????????" << std::endl;
+                         hasValidated = true;
+                         BOOST_CHECK(true);
+                       },
+                       [&] (const Data& data, const ValidationError& str) {
+                         std::cout << "1111111111" << std::endl;
+                         hasValidated = true;
+                         BOOST_CHECK(false);
+                       });
 
-  m_face.processEvents(time::milliseconds(-1));
-
+  advanceClocks(time::milliseconds(10), 100);
+  // m_io.run();
   BOOST_CHECK_EQUAL(hasValidated, true);
 
   // case2: signing testId2's data by testId3's key, which should failed in validation
@@ -131,15 +154,15 @@ BOOST_FIXTURE_TEST_CASE(Basic, ValidatorTestFixture)
   m_keyChain.sign(*data, signingByCertificate(m_ndnsimCert)); // key's owner's name is longer than data owner's
 
   hasValidated = false;
-  validator.validate(*data,
-                     [&] (const Data& data) {
-                       hasValidated = true;
-                       BOOST_CHECK(false);
-                     },
-                     [&] (const Data& data, const ValidationError& str) {
-                       hasValidated = true;
-                       BOOST_CHECK(true);
-                     });
+  m_validator.validate(*data,
+                       [&] (const Data& data) {
+                         hasValidated = true;
+                         BOOST_CHECK(false);
+                       },
+                       [&] (const Data& data, const ValidationError& str) {
+                         hasValidated = true;
+                         BOOST_CHECK(true);
+                       });
 
   m_face.processEvents(time::milliseconds(-1));
   // cannot pass verification due to key's owner's name is longer than data owner's
@@ -157,15 +180,15 @@ BOOST_FIXTURE_TEST_CASE(Basic, ValidatorTestFixture)
   m_keyChain.sign(*data, signingByCertificate(m_randomCert));
 
   hasValidated = false;
-  validator.validate(*data,
-                     [&] (const Data& data) {
-                       hasValidated = true;
-                       BOOST_CHECK(false);
-                     },
-                     [&] (const Data& data, const ValidationError& str) {
-                       hasValidated = true;
-                       BOOST_CHECK(true);
-                     });
+  m_validator.validate(*data,
+                       [&] (const Data& data) {
+                         hasValidated = true;
+                         BOOST_CHECK(false);
+                       },
+                       [&] (const Data& data, const ValidationError& str) {
+                         hasValidated = true;
+                         BOOST_CHECK(true);
+                       });
 
   m_face.processEvents(time::milliseconds(-1));
   // cannot pass due to a totally mismatched key

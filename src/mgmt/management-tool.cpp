@@ -117,7 +117,7 @@ ManagementTool::createZone(const Name &zoneName,
     dkey = m_keyChain.createKey(dkeyIdentity);
     m_keyChain.deleteCertificate(dkey, dkey.getDefaultCertificate().getName());
 
-    dkeyCert = createCertificate(m_keyChain, dkey, dkey, label::CERT_RR_TYPE.toUri(), time::days(90));
+    dkeyCert = createCertificate(m_keyChain, dkey, dkey, label::CERT_RR_TYPE.toUri(), certValidity);
     dkeyCert.setFreshnessPeriod(cacheTtl);
     m_keyChain.addCertificate(dkey, dkeyCert);
     NDNS_LOG_INFO("Generated DKEY: " << dkeyCert.getName());
@@ -132,7 +132,7 @@ ManagementTool::createZone(const Name &zoneName,
     // delete automatically generated certificates,
     // because its issue is 'self' instead of CERT_RR_TYPE
     m_keyChain.deleteCertificate(ksk, ksk.getDefaultCertificate().getName());
-    kskCert = createCertificate(m_keyChain, ksk, dkey, label::CERT_RR_TYPE.toUri(), time::days(90));
+    kskCert = createCertificate(m_keyChain, ksk, dkey, label::CERT_RR_TYPE.toUri(), certValidity);
     kskCert.setFreshnessPeriod(cacheTtl);
     m_keyChain.addCertificate(ksk, kskCert);
     NDNS_LOG_INFO("Generated KSK: " << kskCert.getName());
@@ -353,7 +353,11 @@ ManagementTool::addRrsetFromFile(const Name& zoneName,
   }
 
   if (needResign) {
-    m_keyChain.sign(*data, signingByCertificate(dskCertName));
+    // TODO validityPeriod should be able to be configured
+    SignatureInfo info;
+    info.setValidityPeriod(security::ValidityPeriod(time::system_clock::TimePoint::min(),
+                                                    time::system_clock::now() + time::days(10)));
+    m_keyChain.sign(*data, signingByCertificate(dskCertName).setSignatureInfo(info));
   }
 
   // create response for the input data

@@ -388,6 +388,7 @@ BOOST_AUTO_TEST_CASE(CreateZoneWithFixture)
 
   BOOST_REQUIRE_NO_THROW(cert = findCertFromDb(zone, dsk));
   BOOST_CHECK_EQUAL(cert.getFreshnessPeriod(), time::seconds(4200));
+  // bug here
   BOOST_CHECK_EQUAL(end - beg + time::seconds(1), time::days(30));
   m_tool.deleteZone(zoneName);
 }

@@ -47,7 +47,7 @@ init(const std::string& configFile/*= DEFAULT_CONFIG_PATH "/" "log4cxx.propertie
     PatternLayoutPtr   layout(new PatternLayout("%d{HH:mm:ss} %p %c{1} - %m%n"));
     ConsoleAppenderPtr appender(new ConsoleAppender(layout, ConsoleAppender::getSystemErr()));
     BasicConfigurator::configure(appender);
-    Logger::getRootLogger()->setLevel(log4cxx::Level::getInfo());
+    Logger::getRootLogger()->setLevel(log4cxx::Level::getTrace());
   }
 }
 
