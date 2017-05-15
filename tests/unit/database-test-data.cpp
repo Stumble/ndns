@@ -161,7 +161,9 @@ DbTestData::addRrset(Zone& zone, const Name& label, const name::Component& type,
 
   security::verifySignature(*data, m_cert);
 
-  m_session.insert(rrset);
+  ManagementTool tool(TEST_DATABASE.string(), m_keyChain);
+  tool.addRrset(rrset);
+
   m_rrsets.push_back(rrset);
 }
 

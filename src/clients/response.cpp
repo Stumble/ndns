@@ -93,6 +93,14 @@ Response::wireDecode(const Block& wire)
   }
 }
 
+std::pair<Name, Name>
+Response::wireDecodeDoe(const Block& wire)
+{
+  wire.parse();
+  BOOST_ASSERT(wire.elements().size() == 2);
+  return std::make_pair(Name(wire.elements().front()), Name(wire.elements().back()));
+}
+
 bool
 Response::fromData(const Name& zone, const Data& data)
 {

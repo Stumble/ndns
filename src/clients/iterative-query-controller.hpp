@@ -79,6 +79,11 @@ NDNS_PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   void
   onData(const ndn::Interest& interest, const Data& data);
 
+  /**
+   * @brief called when any data are validated.
+   * It will unwrap the NACK record,
+   * so onSucceed callback will be called with only inner DoE
+   */
   void
   onDataValidated(const Data& data, NdnsContentType contentType);
 
@@ -130,6 +135,10 @@ public:
     return m_nTryComps;
   }
 
+private:
+  bool
+  isAbsentByDoe(const Data& data) const;
+
 protected:
   security::v2::Validator* m_validator;
   /**
@@ -151,6 +160,8 @@ protected:
 
 private:
   Block m_lastLink;
+  Data m_doe;
+  Name m_lastLabelType;
   ndn::InMemoryStorage* m_nsCache;
 };
 

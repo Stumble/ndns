@@ -394,6 +394,52 @@ DbMgr::find(Rrset& rrset)
   return rrset.getId() != 0;
 }
 
+bool
+DbMgr::findLowerBound(Rrset& rrset)
+{
+  if (rrset.getZone() == 0) {
+    BOOST_THROW_EXCEPTION(RrsetError("Rrset has not been assigned to a zone"));
+  }
+
+  if (rrset.getZone()->getId() == 0) {
+    bool isFound = find(*rrset.getZone());
+    if (!isFound) {
+      return false;
+    }
+  }
+
+  sqlite3_stmt* stmt;
+  const char* sql =
+    "SELECT id, ttl, version, data FROM rrsets"
+    "    WHERE zone_id=? and label<? and type=? ORDER BY label DESC";
+  int rc = sqlite3_prepare_v2(m_conn, sql, -1, &stmt, 0);
+
+  if (rc != SQLITE_OK) {
+    BOOST_THROW_EXCEPTION(PrepareError(sql));
+  }
+
+  sqlite3_bind_int64(stmt, 1, rrset.getZone()->getId());
+
+  const Block& label = rrset.getLabel().wireEncode();
+  sqlite3_bind_blob(stmt, 2, label.wire(), label.size(), SQLITE_STATIC);
+  sqlite3_bind_blob(stmt, 3, rrset.getType().wire(), rrset.getType().size(), SQLITE_STATIC);
+
+  if (sqlite3_step(stmt) == SQLITE_ROW) {
+    rrset.setId(sqlite3_column_int64(stmt, 0));
+    rrset.setTtl(time::seconds(sqlite3_column_int64(stmt, 1)));
+    rrset.setVersion(Block(static_cast<const uint8_t*>(sqlite3_column_blob(stmt, 2)),
+                           sqlite3_column_bytes(stmt, 2)));
+    rrset.setData(Block(static_cast<const uint8_t*>(sqlite3_column_blob(stmt, 3)),
+                        sqlite3_column_bytes(stmt, 3)));
+  }
+  else {
+    rrset.setId(0);
+  }
+  sqlite3_finalize(stmt);
+
+  return rrset.getId() != 0;
+}
+
 std::vector<Rrset>
 DbMgr::findRrsets(Zone& zone)
 {
@@ -406,7 +452,7 @@ DbMgr::findRrsets(Zone& zone)
   std::vector<Rrset> vec;
   sqlite3_stmt* stmt;
   const char* sql = "SELECT id, ttl, version, data, label, type "
-                    "FROM rrsets where zone_id=? ";
+                    "FROM rrsets where zone_id=? ORDER BY label DESC";
 
   int rc = sqlite3_prepare_v2(m_conn, sql, -1, &stmt, 0);
   if (rc != SQLITE_OK) {
@@ -434,6 +480,33 @@ DbMgr::findRrsets(Zone& zone)
   return vec;
 }
 
+void
+DbMgr::removeRrsetsOfZoneByType(Zone& zone, const name::Component& type)
+{
+  if (zone.getId() == 0)
+    find(zone);
+
+  if (zone.getId() == 0)
+    BOOST_THROW_EXCEPTION(RrsetError("Attempting to find all the rrsets with a zone does not in the database"));
+
+  sqlite3_stmt* stmt;
+  const char* sql = "DELETE FROM rrsets WHERE zone_id = ? AND type = ?";
+  int rc = sqlite3_prepare_v2(m_conn, sql, -1, &stmt, 0);
+
+  if (rc != SQLITE_OK) {
+    BOOST_THROW_EXCEPTION(PrepareError(sql));
+  }
+
+  sqlite3_bind_int64(stmt, 1, zone.getId());
+  sqlite3_bind_blob(stmt,  2, type.wire(), type.size(), SQLITE_STATIC);
+
+  rc = sqlite3_step(stmt);
+  if (rc != SQLITE_DONE) {
+    sqlite3_finalize(stmt);
+    BOOST_THROW_EXCEPTION(ExecuteError(sql));
+  }
+  sqlite3_finalize(stmt);
+}
 
 void
 DbMgr::remove(Rrset& rrset)

@@ -285,6 +285,76 @@ BOOST_FIXTURE_TEST_SUITE(ManagementTool, ManagementToolFixture)
 //   std::cout << "Manually copy contents of /tmp/.ndn into tests/unit/mgmt/.ndn" << std::endl;
 // }
 
+BOOST_AUTO_TEST_CASE(SqliteLabelOrder)
+{
+  // the correctness of our DoE design rely on the ordering of SQLite
+  // this unit test make sure that our label::isSmallerInLabelOrder
+  // is the same as the ordering of BLOB in SQLite
+
+  srand(std::time(nullptr));
+
+  auto genRandomChar = []() -> char {
+      const char charset[] =
+      "0123456789"
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "abcdefghijklmnopqrstuvwxyz";
+      const size_t max_index = (sizeof(charset) - 1);
+      return charset[ rand() % max_index ];
+  };
+
+  auto genRandomString = [genRandomChar] (int length) -> std::string {
+    std::string str(length, 0);
+    std::generate_n(str.begin(), length, genRandomChar);
+    return str;
+  };
+
+  auto genRandomLable = [genRandomString] (int length) -> Name {
+    Name nm;
+    for (int i = 0; i < length; i++)
+      nm.append(genRandomString(rand() % 10 + 1));
+    return nm;
+  };
+
+  Zone zone = m_tool.createZone("/net/ndnsim", "/net");
+  RrsetFactory rrsetFactory(TEST_DATABASE.string(), zone.getName(),
+                            m_keyChain, DEFAULT_CERT);
+  rrsetFactory.checkZoneKey();
+  std::vector<Rrset> rrsets;
+  for (int i = 0; i < 200; i++) {
+    int randomLength = rand() % 5 + 1;
+    Name randomLabel = genRandomLable(randomLength);
+    Rrset randomTxt = rrsetFactory.generateTxtRrset(randomLabel,
+                                                    VERSION_USE_UNIX_TIMESTAMP,
+                                                    DEFAULT_CACHE_TTL,
+                                                    {});
+    rrsets.push_back(randomTxt);
+    m_dbMgr.insert(randomTxt);
+  }
+
+  std::sort(rrsets.begin(), rrsets.end(), [](const Rrset& a, const Rrset& b){
+    Name aName = Name(a.getLabel()).append(a.getType());
+    Name bName = Name(b.getLabel()).append(b.getType());
+    return !(label::isSmallerInLabelOrder(aName, bName));
+  });
+
+  std::vector<Rrset> rrsetsFromDb = m_dbMgr.findRrsets(zone);
+
+  // check if the order is the same
+  bool isSameOrdered = true;
+  int cnt = 0;
+  for (size_t i = 0; i < rrsetsFromDb.size(); i++) {
+    if (rrsetsFromDb[i].getType() != label::TXT_RR_TYPE) {
+      continue;
+    }
+    if (rrsetsFromDb[i].getLabel() != rrsets[cnt].getLabel()) {
+      isSameOrdered = false;
+      break;
+    }
+    cnt++;
+  }
+  BOOST_CHECK_EQUAL(isSameOrdered, true);
+}
+
 BOOST_AUTO_TEST_CASE(CreateDeleteRootFixture)
 {
   // creating root_zone need a rootDkey
