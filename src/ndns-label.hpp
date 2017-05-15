@@ -74,6 +74,10 @@ const name::Component APPCERT_RR_TYPE("APPCERT");
  */
 const name::Component TXT_RR_TYPE("TXT");
 
+/**
+ * @brief Denial of Existance record type
+ */
+const name::Component DOE_RR_TYPE("DOE");
 
 //////////////////////////////////////////
 
@@ -115,6 +119,14 @@ matchName(const Data& data,
           const Name& zone,
           MatchResult& result);
 
+/**
+ * @brief less than comparison of labels
+ *
+ * @return true if a < b
+ */
+bool
+isSmallerInLabelOrder(const Name& a,
+                      const Name& b);
 
 } // namespace label
 } // namespace ndns

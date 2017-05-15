@@ -82,6 +82,17 @@ public:
                     time::seconds ttl,
                     const ndn::security::v2::Certificate& cert);
 
+  /**
+   * @brief DoE records are just txt records of all entries of a zone
+   * which means the any range showed in this record does not exist
+   */
+  Rrset
+  generateDoeRrset(const Name& label,
+                   const uint64_t version,
+                   time::seconds ttl,
+                   const Name& lowerLabel,
+                   const Name& upperLabel);
+
   static std::vector<std::string>
   wireDecodeTxt(const Block& wire);
 
