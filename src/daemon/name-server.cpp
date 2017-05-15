@@ -98,11 +98,16 @@ NameServer::handleQuery(const Name& prefix, const Interest& interest, const labe
     // currently, there is only one DoE record contains everything
     doe.setLabel(label::DOE_ALL_RANGES_LABEL);
     doe.setType(label::DOE_RR_TYPE);
-    m_dbMgr.find(rrset);
+    if (!m_dbMgr.find(doe)) {
+        NDNS_LOG_FATAL("fail to find DoE record of zone:" + m_zone.getName().toUri());
+        throw std::runtime_error("fail to find DoE record of zone:" + m_zone.getName().toUri());
+    }
 
     answer->setContent(doe.getData());
     answer->setFreshnessPeriod(this->getContentFreshness());
     answer->setContentType(NDNS_NACK);
+    // give this NACk a random signature
+    m_keyChain.sign(*answer);
 
     NDNS_LOG_TRACE("answer query with NDNS-NACK: " << answer->getName());
     m_face.put(*answer);

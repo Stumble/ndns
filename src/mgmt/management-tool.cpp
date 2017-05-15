@@ -291,10 +291,6 @@ ManagementTool::addMultiLevelLabelRrset(Rrset& rrset,
 void
 ManagementTool::addRrset(Rrset& rrset)
 {
-  if (rrset.getLabel().size() > 1) {
-    throw Error("Cannot add rrset with label size > 1, should use addMultiLevelLabelRrset instead");
-  }
-
   // check that it does not override existing AUTH
   Rrset rrsetCopy = rrset;
   rrsetCopy.setType(label::NS_RR_TYPE);
@@ -686,9 +682,11 @@ ManagementTool::generateDoe(Zone& zone)
 
   // create one DOE record for the whole zone
   RrsetFactory factory(m_dbMgr.getDbFile(), zone.getName(), m_keyChain, DEFAULT_CERT);
+  factory.checkZoneKey();
   Rrset doe = factory.generateDoeRrset(label::DOE_ALL_RANGES_LABEL,
                                        VERSION_USE_UNIX_TIMESTAMP,
                                        DEFAULT_CACHE_TTL, recordsStr);
+  NDNS_LOG_INFO("DoE record updated: " << doe);
   m_dbMgr.insert(doe);
 }
 

@@ -69,17 +69,20 @@ IterativeQueryController::onData(const ndn::Interest& interest, const Data& data
 
   NDNS_LOG_TRACE("[* -> *] get a " << contentType
                  << " Response: " << data.getName());
+
+  const Data* toBeValidatedData = nullptr;
+  if (contentType == NDNS_NACK) {
+    m_doe = Data(data.getContent().blockFromValue());
+    toBeValidatedData = &m_doe;
+    contentType = NDNS_DOE;
+  } else {
+    toBeValidatedData = &data;
+  }
+
   if (m_validator == nullptr) {
-    this->onDataValidated(data, contentType);
+    this->onDataValidated(*toBeValidatedData, contentType);
   }
   else {
-    const Data* toBeValidatedData = nullptr;
-    if (data.getContentType() == NDNS_NACK) {
-      m_doe = Data(data.getContent());
-      toBeValidatedData = &m_doe;
-    } else {
-      toBeValidatedData = &data;
-    }
     m_validator->validate(*toBeValidatedData,
                           bind(&IterativeQueryController::onDataValidated, this, _1, contentType),
                           [this] (const Data& data, const ValidationError& err) {
