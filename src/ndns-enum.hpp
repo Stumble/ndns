@@ -34,6 +34,7 @@ enum NdnsContentType {
   NDNS_LINK = ndn::tlv::ContentType_Link,
   NDNS_KEY  = ndn::tlv::ContentType_Key,
   NDNS_NACK = ndn::tlv::ContentType_Nack,
+  NDNS_DOE  = 1085,
   NDNS_AUTH = 1086, ///< only has RR for detailed (longer) label
   NDNS_RESP = 1087, ///< response type means there are requested RR
   NDNS_UNKNOWN = 1088,  ///< this is not a real type, just mean that contentType is unknown

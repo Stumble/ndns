@@ -69,11 +69,21 @@ IterativeQueryController::onData(const ndn::Interest& interest, const Data& data
 
   NDNS_LOG_TRACE("[* -> *] get a " << contentType
                  << " Response: " << data.getName());
+
+  const Data* toBeValidatedData = nullptr;
+  if (contentType == NDNS_NACK) {
+    m_doe = Data(data.getContent().blockFromValue());
+    toBeValidatedData = &m_doe;
+    contentType = NDNS_DOE;
+  } else {
+    toBeValidatedData = &data;
+  }
+
   if (m_validator == nullptr) {
-    this->onDataValidated(data, contentType);
+    this->onDataValidated(*toBeValidatedData, contentType);
   }
   else {
-    m_validator->validate(data,
+    m_validator->validate(*toBeValidatedData,
                           bind(&IterativeQueryController::onDataValidated, this, _1, contentType),
                           [this] (const Data& data, const ValidationError& err) {
                             NDNS_LOG_WARN("data: " << data.getName() << " fails verification");
@@ -82,6 +92,7 @@ IterativeQueryController::onData(const ndn::Interest& interest, const Data& data
                           );
   }
 }
+
 void
 IterativeQueryController::onDataValidated(const Data& data, NdnsContentType contentType)
 {
@@ -91,8 +102,17 @@ IterativeQueryController::onDataValidated(const Data& data, NdnsContentType cont
 
   switch (m_step) {
   case QUERY_STEP_QUERY_NS:
-    if (contentType == NDNS_NACK) {
-      m_step = QUERY_STEP_QUERY_RR;
+    if (contentType == NDNS_DOE) {
+      // check if requested record is absent by looking up in doe
+      if (isAbsentByDoe(data)) {
+        m_step = QUERY_STEP_QUERY_RR;
+      } else {
+        std::ostringstream oss;
+        oss << "In onDataValidated, absence of record can not be infered from DoE.";
+        oss << " Last query:" << m_lastLabelType << " ";
+        oss << *this;
+        throw std::runtime_error(oss.str());
+      }
     }
     else if (contentType == NDNS_LINK) {
       Link link(data.wireEncode());
@@ -231,8 +251,27 @@ IterativeQueryController::makeLatestInterest()
     throw std::runtime_error("call makeLatestInterest() unexpected: " + oss.str());
   }
 
+  m_lastLabelType = Name(query.getRrLabel()).append(query.getRrType());
   Interest interest = query.toInterest();
   return interest;
+}
+
+bool
+IterativeQueryController::isAbsentByDoe(const Data& data) const
+{
+  std::pair<Name, Name> range = Response::wireDecodeDoe(data.getContent());
+
+  // should not be simple <, use our own definition of compare
+  if (label::isSmallerInLabelOrder(range.first, m_lastLabelType)
+      && label::isSmallerInLabelOrder(m_lastLabelType, range.second)) {
+    return true;
+  }
+  if (label::isSmallerInLabelOrder(range.second, range.first)
+    && (label::isSmallerInLabelOrder(m_lastLabelType, range.first)
+        || label::isSmallerInLabelOrder(range.second, m_lastLabelType))) {
+    return true;
+  }
+  return false;
 }
 
 std::ostream&

@@ -35,6 +35,9 @@ operator<<(std::ostream& os, const NdnsContentType ndnsType)
   case NDNS_NACK:
     os << "NACK";
     break;
+  case NDNS_DOE:
+    os << "DOE";
+    break;
   case NDNS_KEY:
     os << "KEY";
     break;

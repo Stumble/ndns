@@ -147,9 +147,6 @@ public:
 
   /** @brief Add rrset to the NDNS local database
    *
-   *  @throw Error if the @p rrset label size is larger than 1 or @p rrset will override an
-   *               existing AUTH record
-   *
    *  @param rrset rrset
    */
   void
@@ -253,6 +250,11 @@ private:
    */
   void
   checkRrsetVersion(const Rrset& rrset);
+
+  /**
+     @brief generate all Doe records
+   */
+  void generateDoe(Zone& zone);
 
 private:
   KeyChain& m_keyChain;
