@@ -361,7 +361,7 @@ BOOST_AUTO_TEST_CASE(CreateZoneWithFixture)
   std::vector<Name>&& certs = getCerts(zoneName);
   BOOST_REQUIRE_EQUAL(certs.size(), 2);
 
-  Name& ksk = certs[0];
+  // Name& ksk = certs[0];
   Name& dsk = certs[1];
 
   // Check zone ttl

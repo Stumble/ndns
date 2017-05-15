@@ -74,6 +74,15 @@ const name::Component APPCERT_RR_TYPE("APPCERT");
  */
 const name::Component TXT_RR_TYPE("TXT");
 
+/**
+ * @brief Denial of Existance record type
+ */
+const name::Component DOE_RR_TYPE("DOE");
+
+/**
+ * @brief Label for DOE packet of all ranges
+ */
+const Name DOE_ALL_RANGES_LABEL("ALL");
 
 //////////////////////////////////////////
 

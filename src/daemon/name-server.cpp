@@ -91,14 +91,19 @@ NameServer::handleQuery(const Name& prefix, const Interest& interest, const labe
     m_face.put(*answer);
   }
   else {
-    // no record, construct NACK
     Name name = interest.getName();
     name.appendVersion();
     shared_ptr<Data> answer = make_shared<Data>(name);
+    Rrset doe(&m_zone);
+    // currently, there is only one DoE record contains everything
+    doe.setLabel(label::DOE_ALL_RANGES_LABEL);
+    doe.setType(label::DOE_RR_TYPE);
+    m_dbMgr.find(rrset);
+
+    answer->setContent(doe.getData());
     answer->setFreshnessPeriod(this->getContentFreshness());
     answer->setContentType(NDNS_NACK);
 
-    m_keyChain.sign(*answer, signingByCertificate(m_certName));
     NDNS_LOG_TRACE("answer query with NDNS-NACK: " << answer->getName());
     m_face.put(*answer);
   }

@@ -432,6 +432,33 @@ DbMgr::findRrsets(Zone& zone)
   return vec;
 }
 
+void
+DbMgr::removeRrsetsOfZoneByType(Zone &zone, const name::Component& type)
+{
+  if (zone.getId() == 0)
+    find(zone);
+
+  if (zone.getId() == 0)
+    throw RrsetError("Attempting to find all the rrsets with a zone does not in the database");
+
+  sqlite3_stmt* stmt;
+  const char* sql = "DELETE FROM rrsets WHERE zone_id = ? AND type = ?";
+  int rc = sqlite3_prepare_v2(m_conn, sql, -1, &stmt, 0);
+
+  if (rc != SQLITE_OK) {
+    throw PrepareError(sql);
+  }
+
+  sqlite3_bind_int64(stmt, 1, zone.getId());
+  sqlite3_bind_blob(stmt,  2, type.wire(), type.size(), SQLITE_STATIC);
+
+  rc = sqlite3_step(stmt);
+  if (rc != SQLITE_DONE) {
+    sqlite3_finalize(stmt);
+    throw ExecuteError(sql);
+  }
+  sqlite3_finalize(stmt);
+}
 
 void
 DbMgr::remove(Rrset& rrset)

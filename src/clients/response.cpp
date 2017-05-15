@@ -93,6 +93,20 @@ Response::wireDecode(const Block& wire)
   }
 }
 
+std::vector<std::string>
+Response::wireDecodeTxt(const Block& wire)
+{
+  std::vector<std::string> txts;
+  wire.parse();
+
+  for (const auto& e : wire.elements()) {
+    txts.push_back(std::string(reinterpret_cast<const char*>(e.value()),
+                               e.value_size()));
+  }
+
+  return txts;
+}
+
 bool
 Response::fromData(const Name& zone, const Data& data)
 {

@@ -182,6 +182,13 @@ public: // Rrset manipulation
   remove(Rrset& rrset);
 
   /**
+   * @brief remove all records of a specific type in a zone
+   */
+  void
+  removeRrsetsOfZoneByType(Zone &zone,
+                           const name::Component& type);
+
+  /**
    * @brief replace ttl, version, and Data with new values
    * @pre m_rrset.getId() > 0
    */

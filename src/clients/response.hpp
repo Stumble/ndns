@@ -112,6 +112,9 @@ public:
   size_t
   wireEncode(EncodingImpl<T> & block) const;
 
+  static std::vector<std::string>
+  wireDecodeTxt(const Block& wire);
+
 public:
   ///////////////////////////////////////////////
   // getter and setter

@@ -177,6 +177,7 @@ ManagementTool::createZone(const Name &zoneName,
   NDNS_LOG_INFO("Start saving DKEY certificate id to ZoneInfo");
   m_dbMgr.setZoneInfo(zone, "dkey", dkeyCert.wireEncode());
 
+  generateDoe(zone);
   return zone;
 }
 
@@ -284,6 +285,7 @@ ManagementTool::addMultiLevelLabelRrset(Rrset& rrset,
   checkRrsetVersion(rrset);
   NDNS_LOG_INFO("Adding " << rrset);
   m_dbMgr.insert(rrset);
+  generateDoe(*rrset.getZone());
 }
 
 void
@@ -305,6 +307,7 @@ ManagementTool::addRrset(Rrset& rrset)
   checkRrsetVersion(rrset);
   NDNS_LOG_INFO("Added " << rrset);
   m_dbMgr.insert(rrset);
+  generateDoe(*rrset.getZone());
 }
 
 void
@@ -379,6 +382,7 @@ ManagementTool::addRrsetFromFile(const Name& zoneName,
   checkRrsetVersion(rrset);
   NDNS_LOG_INFO("Adding rrset from file " << rrset);
   m_dbMgr.insert(rrset);
+  generateDoe(*rrset.getZone());
 }
 
 Certificate
@@ -550,6 +554,7 @@ ManagementTool::removeRrSet(const Name& zoneName, const Name& label, const name:
   NDNS_LOG_INFO("Remove rrset with zone-id: " << zone.getId() << " label: " << label << " type: "
                 << type);
   m_dbMgr.remove(rrset);
+  generateDoe(zone);
 }
 
 void
@@ -647,6 +652,44 @@ ManagementTool::checkRrsetVersion(const Rrset& rrset)
 
     m_dbMgr.remove(originalRrset);
   }
+}
+
+void
+ManagementTool::generateDoe(Zone& zone)
+{
+  // check zone existence
+  if (!m_dbMgr.find(zone)) {
+    throw Error(zone.getName().toUri() + " is not presented in the NDNS db");
+  }
+
+  // remove all the Doe records
+  m_dbMgr.removeRrsetsOfZoneByType(zone, label::DOE_RR_TYPE);
+
+  // get the records out
+  std::vector<Rrset> allRecords = m_dbMgr.findRrsets(zone);
+
+  // sort them by label URI concatenated with type URI
+  std::sort(allRecords.begin(), allRecords.end(),
+            [] (const Rrset &a, const Rrset &b) {
+              return a.getLabel().toUri() + a.getType().toUri()
+                < b.getLabel().toUri() + b.getType().toUri();
+            });
+
+  std::vector<std::string> recordsStr;
+  for (size_t i = 0; i < allRecords.size(); i++) {
+    const Rrset& rr = allRecords[i];
+    recordsStr.push_back(rr.getLabel().toUri() + rr.getType().toUri());
+  }
+
+  // duplicate the first record, so all spans are presented
+  recordsStr.push_back(*recordsStr.begin());
+
+  // create one DOE record for the whole zone
+  RrsetFactory factory(m_dbMgr.getDbFile(), zone.getName(), m_keyChain, DEFAULT_CERT);
+  Rrset doe = factory.generateDoeRrset(label::DOE_ALL_RANGES_LABEL,
+                                       VERSION_USE_UNIX_TIMESTAMP,
+                                       DEFAULT_CACHE_TTL, recordsStr);
+  m_dbMgr.insert(doe);
 }
 
 } // namespace ndns

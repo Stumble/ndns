@@ -133,6 +133,10 @@ public:
     return m_nTryComps;
   }
 
+private:
+  bool
+  isAbsentByDoe(const Data& data) const;
+
 protected:
   ValidatorNdns* m_validator;
   /**
@@ -154,6 +158,8 @@ protected:
 
 private:
   Block m_lastLink;
+  Data m_doe;
+  std::string m_lastLableTypeStr;
   static ndn::util::InMemoryStorageLru s_nsCache;
 };
 

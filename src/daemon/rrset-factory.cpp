@@ -229,6 +229,41 @@ RrsetFactory::generateAuthRrset(const Name& label,
   return rrset;
 }
 
+Rrset
+RrsetFactory::generateDoeRrset(const Name& label,
+                               const uint64_t version,
+                               time::seconds ttl,
+                               const std::vector<std::string>& ranges)
+{
+  if (!m_checked) {
+    BOOST_THROW_EXCEPTION(Error("You have to call checkZoneKey before call generate functions"));
+  }
+
+  if (ttl == DEFAULT_RR_TTL)
+    ttl = m_zone.getTtl();
+
+  Name name;
+  Rrset rrset;
+  std::tie(rrset, name) = generateBaseRrset(label, label::DOE_RR_TYPE, version, ttl);
+
+  std::vector<Block> rrs;
+  for (const auto& item : ranges) {
+    rrs.push_back(makeBinaryBlock(ndns::tlv::RrData,
+                                  item.c_str(),
+                                  item.size()));
+  }
+
+  Data data(name);
+  data.setContent(wireEncode(rrs));
+
+  setContentType(data, NDNS_DOE, ttl);
+  sign(data);
+  rrset.setData(data.wireEncode());
+
+  return rrset;
+}
+
+
 void
 RrsetFactory::sign(Data& data)
 {

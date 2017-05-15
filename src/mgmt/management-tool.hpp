@@ -254,6 +254,11 @@ private:
   void
   checkRrsetVersion(const Rrset& rrset);
 
+  /**
+     @brief generate all Doe records
+   */
+  void generateDoe(Zone& zone);
+
 private:
   KeyChain& m_keyChain;
   DbMgr m_dbMgr;
