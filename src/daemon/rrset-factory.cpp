@@ -233,7 +233,8 @@ Rrset
 RrsetFactory::generateDoeRrset(const Name& label,
                                const uint64_t version,
                                time::seconds ttl,
-                               const std::vector<std::string>& ranges)
+                               const Name& lowerLabel,
+                               const Name& upperLabel)
 {
   if (!m_checked) {
     BOOST_THROW_EXCEPTION(Error("You have to call checkZoneKey before call generate functions"));
@@ -246,15 +247,12 @@ RrsetFactory::generateDoeRrset(const Name& label,
   Rrset rrset;
   std::tie(rrset, name) = generateBaseRrset(label, label::DOE_RR_TYPE, version, ttl);
 
-  std::vector<Block> rrs;
-  for (const auto& item : ranges) {
-    rrs.push_back(makeBinaryBlock(ndns::tlv::RrData,
-                                  item.c_str(),
-                                  item.size()));
-  }
+  std::vector<Block> range;
+  range.push_back(lowerLabel.wireEncode());
+  range.push_back(upperLabel.wireEncode());
 
   Data data(name);
-  data.setContent(wireEncode(rrs));
+  data.setContent(wireEncode(range));
 
   setContentType(data, NDNS_DOE, ttl);
   sign(data);

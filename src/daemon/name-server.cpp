@@ -96,9 +96,9 @@ NameServer::handleQuery(const Name& prefix, const Interest& interest, const labe
     shared_ptr<Data> answer = make_shared<Data>(name);
     Rrset doe(&m_zone);
     // currently, there is only one DoE record contains everything
-    doe.setLabel(label::DOE_ALL_RANGES_LABEL);
+    doe.setLabel(Name(re.rrLabel).append(re.rrType));
     doe.setType(label::DOE_RR_TYPE);
-    if (!m_dbMgr.find(doe)) {
+    if (!m_dbMgr.findLowerBound(doe)) {
         NDNS_LOG_FATAL("fail to find DoE record of zone:" + m_zone.getName().toUri());
         throw std::runtime_error("fail to find DoE record of zone:" + m_zone.getName().toUri());
     }

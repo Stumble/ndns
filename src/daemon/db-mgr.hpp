@@ -165,6 +165,20 @@ public: // Rrset manipulation
   find(Rrset& rrset);
 
   /**
+   * @brief get the data from db according to `m_zone`, `m_label`, `m_type`.
+   *
+   * The lower bound rrset is the largest label that is less than rrset's label
+   * If record exists, `m_ttl`, `m_version` and `m_data` is set
+   *
+   * @pre m_rrset.getZone().getId() > 0
+   * @post whatever the previous id is,
+   *       m_rrset.getId() > 0 if record exists, otherwise m_rrset.getId() == 0
+   * @return true if the record exist
+   */
+  bool
+  findLowerBound(Rrset& rrset);
+
+  /**
    * @brief get all the rrsets which is stored at given zone
    * @throw RrsetError() if zone does not exist in the database
    * @note if zone.getId() == 0, the function setId for the zone automatically

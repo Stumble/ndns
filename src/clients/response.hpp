@@ -112,8 +112,8 @@ public:
   size_t
   wireEncode(EncodingImpl<T> & block) const;
 
-  static std::vector<std::string>
-  wireDecodeTxt(const Block& wire);
+  static std::pair<Name, Name>
+  wireDecodeDoe(const Block& wire);
 
 public:
   ///////////////////////////////////////////////

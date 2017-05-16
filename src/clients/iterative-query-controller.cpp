@@ -109,7 +109,7 @@ IterativeQueryController::onDataValidated(const Data& data, NdnsContentType cont
       } else {
         std::ostringstream oss;
         oss << "In onDataValidated, absence of record can not be infered from DoE.";
-        oss << " Last query:" << m_lastLableTypeStr << " ";
+        oss << " Last query:" << m_lastLabelType << " ";
         oss << *this;
         throw std::runtime_error(oss.str());
       }
@@ -251,7 +251,7 @@ IterativeQueryController::makeLatestInterest()
     throw std::runtime_error("call makeLatestInterest() unexpected: " + oss.str());
   }
 
-  m_lastLableTypeStr = query.getRrLabel().toUri() + query.getRrType().toUri();
+  m_lastLabelType = Name(query.getRrLabel()).append(query.getRrType());
   Interest interest = query.toInterest();
   return interest;
 }
@@ -259,17 +259,15 @@ IterativeQueryController::makeLatestInterest()
 bool
 IterativeQueryController::isAbsentByDoe(const Data& data) const
 {
-  std::vector<std::string> records = Response::wireDecodeTxt(data.getContent());
-  BOOST_ASSERT(records.size() >= 2);
-  for (size_t i = 0; i < records.size() - 1; i++) {
-    if (m_lastLableTypeStr > records[i] && m_lastLableTypeStr < records[i + 1]) {
-      return true;
-    }
+  std::pair<Name, Name> range = Response::wireDecodeDoe(data.getContent());
+
+  // should not be simple <, use our own definition of compare
+  if (m_lastLabelType > range.first && m_lastLabelType < range.second) {
+    return true;
   }
-  if (*records.rbegin() < *(records.rbegin() + 1)) {
-    if (m_lastLableTypeStr > *(records.rbegin() + 1)) {
-      return true;
-    }
+  if (range.first > range.second &&
+      (m_lastLabelType > range.first || m_lastLabelType < range.second)) {
+    return true;
   }
   return false;
 }

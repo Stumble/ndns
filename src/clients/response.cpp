@@ -93,18 +93,12 @@ Response::wireDecode(const Block& wire)
   }
 }
 
-std::vector<std::string>
-Response::wireDecodeTxt(const Block& wire)
+std::pair<Name, Name>
+Response::wireDecodeDoe(const Block& wire)
 {
-  std::vector<std::string> txts;
   wire.parse();
-
-  for (const auto& e : wire.elements()) {
-    txts.push_back(std::string(reinterpret_cast<const char*>(e.value()),
-                               e.value_size()));
-  }
-
-  return txts;
+  BOOST_ASSERT(wire.elements().size() == 2);
+  return std::make_pair(Name(wire.elements().front()), Name(wire.elements().back()));
 }
 
 bool

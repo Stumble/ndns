@@ -664,30 +664,46 @@ ManagementTool::generateDoe(Zone& zone)
   // get the records out
   std::vector<Rrset> allRecords = m_dbMgr.findRrsets(zone);
 
-  // sort them by label URI concatenated with type URI
+  // sort them by DoE label name
+  // this order should be the same as the order in database
+  // right?
   std::sort(allRecords.begin(), allRecords.end(),
             [] (const Rrset &a, const Rrset &b) {
-              return a.getLabel().toUri() + a.getType().toUri()
-                < b.getLabel().toUri() + b.getType().toUri();
+              Block aa = Name(a.getLabel()).append(a.getType()).wireEncode();
+              Block bb = Name(b.getLabel()).append(b.getType()).wireEncode();
+              if (aa.size() != bb.size()) {
+                return aa.size() < bb.size();
+              }
+              return std::memcmp(aa.wire(), bb.wire(), aa.value_size()) < 0;
             });
 
-  std::vector<std::string> recordsStr;
-  for (size_t i = 0; i < allRecords.size(); i++) {
-    const Rrset& rr = allRecords[i];
-    recordsStr.push_back(rr.getLabel().toUri() + rr.getType().toUri());
-  }
-
-  // duplicate the first record, so all spans are presented
-  recordsStr.push_back(*recordsStr.begin());
-
-  // create one DOE record for the whole zone
   RrsetFactory factory(m_dbMgr.getDbFile(), zone.getName(), m_keyChain, DEFAULT_CERT);
   factory.checkZoneKey();
-  Rrset doe = factory.generateDoeRrset(label::DOE_ALL_RANGES_LABEL,
-                                       VERSION_USE_UNIX_TIMESTAMP,
-                                       DEFAULT_CACHE_TTL, recordsStr);
-  NDNS_LOG_INFO("DoE record updated: " << doe);
-  m_dbMgr.insert(doe);
+
+  for (size_t i = 0; i < allRecords.size() - 1; i++) {
+    Name lowerLabel = Name(allRecords[i].getLabel()).append(allRecords[i].getType());
+    Name upperLabel = Name(allRecords[i + 1].getLabel()).append(allRecords[i + 1].getType());
+    Rrset doe = factory.generateDoeRrset(lowerLabel,
+                                         VERSION_USE_UNIX_TIMESTAMP,
+                                         DEFAULT_CACHE_TTL, lowerLabel, upperLabel);
+    m_dbMgr.insert(doe);
+  }
+
+  Name lastLabel = Name(allRecords.back().getLabel()).append(allRecords.back().getType());
+  Name firstLabel = Name(allRecords.front().getLabel()).append(allRecords.front().getType());
+  Rrset lastRange = factory.generateDoeRrset(lastLabel,
+                                             VERSION_USE_UNIX_TIMESTAMP,
+                                             DEFAULT_CACHE_TTL, lastLabel, firstLabel);
+  m_dbMgr.insert(lastRange);
+
+  // This guard will be the lowest label-ranked record
+  // so if requested label+type is less than the lowest label except for this one, it will be choosed
+  // by findLowerBound. This small trick avoids complicated SQL query in findLowerBound
+  Rrset guardRange = factory.generateDoeRrset(Name(""),
+                                              VERSION_USE_UNIX_TIMESTAMP,
+                                              DEFAULT_CACHE_TTL, lastLabel, firstLabel);
+  m_dbMgr.insert(guardRange);
+  NDNS_LOG_INFO("DoE record updated");
 }
 
 } // namespace ndns

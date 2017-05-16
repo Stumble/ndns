@@ -159,7 +159,7 @@ protected:
 private:
   Block m_lastLink;
   Data m_doe;
-  std::string m_lastLableTypeStr;
+  Name m_lastLabelType;
   static ndn::util::InMemoryStorageLru s_nsCache;
 };
 

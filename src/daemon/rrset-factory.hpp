@@ -90,7 +90,8 @@ public:
   generateDoeRrset(const Name& label,
                    const uint64_t version,
                    time::seconds ttl,
-                   const std::vector<std::string>& ranges);
+                   const Name& lowerLabel,
+                   const Name& upperLabel);
 
   static std::vector<std::string>
   wireDecodeTxt(const Block& wire);
