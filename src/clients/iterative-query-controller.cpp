@@ -262,11 +262,13 @@ IterativeQueryController::isAbsentByDoe(const Data& data) const
   std::pair<Name, Name> range = Response::wireDecodeDoe(data.getContent());
 
   // should not be simple <, use our own definition of compare
-  if (m_lastLabelType > range.first && m_lastLabelType < range.second) {
+  if (label::isSmallerInLabelOrder(range.first, m_lastLabelType)
+      && label::isSmallerInLabelOrder(m_lastLabelType, range.second)) {
     return true;
   }
-  if (range.first > range.second &&
-      (m_lastLabelType > range.first || m_lastLabelType < range.second)) {
+  if (label::isSmallerInLabelOrder(range.second, range.first)
+    && (label::isSmallerInLabelOrder(m_lastLabelType, range.first)
+        || label::isSmallerInLabelOrder(range.second, m_lastLabelType))) {
     return true;
   }
   return false;

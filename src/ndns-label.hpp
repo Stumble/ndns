@@ -124,6 +124,14 @@ matchName(const Data& data,
           const Name& zone,
           MatchResult& result);
 
+/**
+ * @brief less than comparison of labels
+ *
+ * @return true if a < b
+ */
+bool
+isSmallerInLabelOrder(const Name& a,
+                      const Name& b);
 
 } // namespace label
 } // namespace ndns

@@ -90,6 +90,17 @@ matchName(const Data& data,
   return true;
 }
 
+bool
+isSmallerInLabelOrder(const Name& a, const Name& b)
+{
+  const Block& aa = a.wireEncode();
+  const Block& bb = b.wireEncode();
+  if (aa.size() != bb.size()) {
+    return aa.size() < bb.size();
+  }
+  return std::memcmp(aa.wire(), bb.wire(), aa.value_size()) < 0;
+}
+
 } // namespace label
 } // namespace ndns
 } // namespace ndn

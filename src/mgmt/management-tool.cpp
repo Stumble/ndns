@@ -669,12 +669,8 @@ ManagementTool::generateDoe(Zone& zone)
   // right?
   std::sort(allRecords.begin(), allRecords.end(),
             [] (const Rrset &a, const Rrset &b) {
-              Block aa = Name(a.getLabel()).append(a.getType()).wireEncode();
-              Block bb = Name(b.getLabel()).append(b.getType()).wireEncode();
-              if (aa.size() != bb.size()) {
-                return aa.size() < bb.size();
-              }
-              return std::memcmp(aa.wire(), bb.wire(), aa.value_size()) < 0;
+              return label::isSmallerInLabelOrder(Name(a.getLabel()).append(a.getType()),
+                                                  Name(b.getLabel()).append(b.getType()));
             });
 
   RrsetFactory factory(m_dbMgr.getDbFile(), zone.getName(), m_keyChain, DEFAULT_CERT);
