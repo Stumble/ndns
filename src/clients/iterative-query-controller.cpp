@@ -59,7 +59,6 @@ IterativeQueryController::abort()
     m_onFail(0, "abort");
   else
     NDNS_LOG_TRACE("m_onFail is 0");
-
 }
 
 void

@@ -93,13 +93,28 @@ public:
     return m_rrType;
   }
 
+  ////////////////
+  // setter
+
+  void
+  setOnSucceedCb(QuerySucceedCallback cb)
+  {
+    m_onSucceed = cb;
+  }
+
+  void
+  setOnFailedCb(QueryFailCallback cb)
+  {
+    m_onFail = cb;
+  }
+
 protected:
   const Name m_dstLabel;
   const name::Component m_rrType;
   const time::milliseconds m_interestLifetime;
 
-  const QuerySucceedCallback m_onSucceed;
-  const QueryFailCallback m_onFail;
+  QuerySucceedCallback m_onSucceed;
+  QueryFailCallback m_onFail;
 
   Face& m_face;
 
