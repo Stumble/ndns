@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /**
- * Copyright (c) 2014, Regents of the University of California.
+ * Copyright (c) 2014-2017, Regents of the University of California.
  *
  * This file is part of NDNS (Named Data Networking Domain Name Service).
  * See AUTHORS.md for complete list of NDNS authors and contributors.
@@ -93,13 +93,28 @@ public:
     return m_rrType;
   }
 
+  ////////////////
+  // setter
+
+  void
+  setOnSucceedCb(QuerySucceedCallback cb)
+  {
+    m_onSucceed = cb;
+  }
+
+  void
+  setOnFailedCb(QueryFailCallback cb)
+  {
+    m_onFail = cb;
+  }
+
 protected:
   const Name m_dstLabel;
   const name::Component m_rrType;
   const time::milliseconds m_interestLifetime;
 
-  const QuerySucceedCallback m_onSucceed;
-  const QueryFailCallback m_onFail;
+  QuerySucceedCallback m_onSucceed;
+  QueryFailCallback m_onFail;
 
   Face& m_face;
 
