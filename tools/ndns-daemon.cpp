@@ -117,7 +117,7 @@ public:
 
         if (cert.empty()) {
           try {
-            cert = CertHelper::getDefaultCertificateNameOfIdentity(m_keyChain, name);
+            cert = CertHelper::getDefaultCertificateNameOfIdentity(m_keyChain, Name(name).append(label::NDNS_ITERATIVE_QUERY));
           }
           catch (std::exception& e) {
             NDNS_LOG_FATAL("Identity: " << name << " does not have default certificate. "
