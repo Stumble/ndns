@@ -39,6 +39,7 @@ void
 NdnsCacheResolver::onNdnsQuery(const Name& prefix,
                                const Interest& interest)
 {
+  NDNS_LOG_TRACE("onReceiving interest:" << interest.getName() << " with prefix " << prefix);
   // check cached records
   shared_ptr<const Data> cachedData = m_cache.find(interest);
   if (cachedData != nullptr) {
@@ -62,7 +63,7 @@ NdnsCacheResolver::onNdnsQuery(const Name& prefix,
                                                         [] (uint32_t errCode, const std::string& errMsg) {
                                                           // same as above
                                                         },
-                                                        m_face, &m_validator);
+                                                        m_face, nullptr);
   m_standingQueries.push_back(queryCtr);
   auto itrOfCtr = --m_standingQueries.end();
   auto deleteItself = [this, itrOfCtr](){
@@ -78,29 +79,37 @@ NdnsCacheResolver::onNdnsQuery(const Name& prefix,
     onFail(interestCopy, errCode, errMsg);
     deleteItself();
   });
+
+  queryCtr->setStartComponentIndex(1);
+  queryCtr->start();
 }
 
 void
 NdnsCacheResolver::onReceiveResponse(const Data& data,
                                      const Response& response)
 {
-  Data outerData(Name(label::NDNS_RECURSIVE_QUERY)
-                 .append(response.getZone())
-                 .append(response.getRrLabel())
-                 .append(response.getRrType())
-                 .appendVersion());
-  outerData.setContent(data.wireEncode());
+  NDNS_LOG_TRACE("[* -> *] get a response of iterative query: " << data.getName());
+
+  Name rtnDataName = Name().append(label::NDNS_RECURSIVE_QUERY)
+                           .append(response.getZone())
+                           .append(response.getRrLabel())
+                           .append(response.getRrType())
+                           .appendVersion();
+
+  auto rtnData = make_shared<Data>(rtnDataName);
+  rtnData->setContent(data.wireEncode());
 
   // TODO
   // set the validity time here
 
-  m_keyChain.sign(outerData, security::signingWithSha256());
+  m_keyChain.sign(*rtnData, security::signingWithSha256());
 
   if (response.getContentType() != NDNS_DOE) {
-    m_cache.insert(outerData);
+    m_cache.insert(*rtnData);
   }
 
-  m_face.put(outerData);
+  NDNS_LOG_TRACE("[* <- *] sending data: " << rtnData->getName());
+  m_face.put(*rtnData);
 }
 
 void

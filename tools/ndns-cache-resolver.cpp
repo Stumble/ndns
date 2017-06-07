@@ -31,6 +31,8 @@ int
 main(int argc, char* argv[])
 {
   using namespace ndn::ndns;
+  ndn::ndns::log::init();
+
   boost::asio::io_service io;
   ndn::Face face(io);
 
