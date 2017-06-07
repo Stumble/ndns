@@ -24,6 +24,7 @@
 
 #include <ndn-cxx/security/v2/validation-policy-config.hpp>
 
+#include <fstream>
 #include <boost/algorithm/string/replace.hpp>
 
 namespace ndn {
@@ -38,13 +39,13 @@ ValidatorNdns::ValidatorNdns(Face& face, const std::string& confFile /* = VALIDA
               make_unique<CertificateFetcherNdnsCert>(face))
 {
   ValidationPolicyConfig& policyConfig = dynamic_cast<ValidationPolicyConfig&>(Validator::getPolicy());
-  try {
-    policyConfig.load(confFile);
-    NDNS_LOG_TRACE("Validator loads configuration: " << confFile);
-  }
-  catch (std::exception&) {
+  std::ifstream confFileStream;
+  confFileStream.open(confFile.c_str());
+  if (!confFileStream.good() || !confFileStream.is_open()) {
+    // failed to load configure file
+    // use embeded version
     std::string config =
-R"VALUE(
+      R"VALUE(
 rule
 {
   id "NDNS KEY signing rule"
@@ -111,8 +112,10 @@ trust-anchor
     boost::replace_last(config, "ANCHORFILE",  DEFAULT_CONFIG_PATH "/" "anchors/root.cert");
     policyConfig.load(config, "embededConf");
     NDNS_LOG_TRACE("Validator loads embedded configuration with anchors path: anchors/root.cert");
+  } else {
+    policyConfig.load(confFile);
+    NDNS_LOG_TRACE("Validator loads configuration: " << confFile);
   }
-
 }
 
 void
