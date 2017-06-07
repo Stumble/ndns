@@ -66,7 +66,13 @@ CertificateFetcherNdnsCert::nsSuccCallback(const Data& data,
   Interest interest(interestName);
 
   if (data.getContentType() == NDNS_LINK) {
-    interest.setLink(data.wireEncode());
+    Link link(data.wireEncode());
+    if (!link.getDelegations().empty()) {
+      interest.setLink(link.wireEncode());
+      NDNS_LOG_INFO(" [* -> *] sending interest with LINK:" << interestName);
+    } else {
+      NDNS_LOG_INFO(" [* -> *] sending interest without LINK (empty delegation set):" << interestName);
+    }
   } else {
     NDNS_LOG_WARN("fail to get NS rrset of " << interestName << " , returned data type:" << data.getContentType());
   }
